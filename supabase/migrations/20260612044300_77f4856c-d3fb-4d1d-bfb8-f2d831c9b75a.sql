@@ -98,19 +98,8 @@ DROP POLICY IF EXISTS "Users can insert own role on signup" ON public.user_roles
 -- The handle_new_user() SECURITY DEFINER trigger keeps signups working.
 -- Admins can manage via service role.
 
--- =========================================================
--- 4) Restrict realtime.messages to authenticated users
--- =========================================================
-ALTER TABLE IF EXISTS realtime.messages ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Authenticated can read realtime messages" ON realtime.messages;
-CREATE POLICY "Authenticated can read realtime messages"
-ON realtime.messages FOR SELECT
-TO authenticated
-USING (true);
-
-DROP POLICY IF EXISTS "Authenticated can write realtime messages" ON realtime.messages;
-CREATE POLICY "Authenticated can write realtime messages"
-ON realtime.messages FOR INSERT
-TO authenticated
-WITH CHECK (true);
+-- Note: an earlier version of this migration tried to enable RLS and add
+-- policies on realtime.messages (a Supabase-managed system table not owned
+-- by the migration role on hosted projects, so this fails there). It's
+-- removed here — a later migration (20260613103245) drops those same
+-- policies anyway with no replacement, so it had no lasting effect.
