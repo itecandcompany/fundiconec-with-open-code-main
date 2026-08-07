@@ -87,23 +87,42 @@ export default function LiveMap({
     ensureNotificationPermission();
   }, []);
 
-  // 1. Watch user GPS
+  // 1. Watch user GPS. A browser permission prompt left unanswered never
+  // fires either geolocation callback, so the `timeout` option alone isn't
+  // reliable — fall back on our own clock too.
   useEffect(() => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      toast.error("GPS not available; using Dar es Salaam");
+    let settled = false;
+    const fallback = (message: string) => {
+      if (settled) return;
+      settled = true;
+      toast.error(message);
       setPos([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]);
+    };
+
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      fallback("GPS not available; using Dar es Salaam");
       return;
     }
+
+    const hardTimeout = window.setTimeout(
+      () => fallback("Couldn't get your location — using default"),
+      8000,
+    );
     watchRef.current = navigator.geolocation.watchPosition(
-      (p) => setPos([p.coords.latitude, p.coords.longitude]),
+      (p) => {
+        settled = true;
+        window.clearTimeout(hardTimeout);
+        setPos([p.coords.latitude, p.coords.longitude]);
+      },
       (err) => {
         console.warn("geo error", err);
-        toast.error("Couldn't get your location — using default");
-        setPos([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]);
+        window.clearTimeout(hardTimeout);
+        fallback("Couldn't get your location — using default");
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
     return () => {
+      window.clearTimeout(hardTimeout);
       if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     };
   }, []);

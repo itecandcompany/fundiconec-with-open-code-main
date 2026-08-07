@@ -9,7 +9,7 @@ import {
   DrawerDescription,
 } from "@/components/ui/drawer";
 import StepProgress from "@/components/StepProgress";
-import { SERVICE_META, formatTsh } from "@/lib/geo";
+import { SERVICE_META, formatTsh, DEFAULT_CENTER } from "@/lib/geo";
 import { clearFlow, loadFlow } from "@/lib/bookingFlow";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -54,15 +54,44 @@ function FindPage() {
     setPhotoUrls(f.photoUrls);
   }, [navigate]);
 
-  // Track user position for the request payload
+  // Track user position for the request payload. A browser permission
+  // prompt left unanswered never fires either geolocation callback, so the
+  // `timeout` option alone isn't reliable — fall back on our own clock too.
   useEffect(() => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) return;
+    let settled = false;
+    const fallback = (message: string) => {
+      if (settled) return;
+      settled = true;
+      toast.error(message);
+      setPos([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]);
+    };
+
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      fallback("GPS not available; using Dar es Salaam");
+      return;
+    }
+
+    const hardTimeout = window.setTimeout(
+      () => fallback("Couldn't get your location — using default"),
+      8000,
+    );
     const id = navigator.geolocation.watchPosition(
-      (p) => setPos([p.coords.latitude, p.coords.longitude]),
-      () => {},
+      (p) => {
+        settled = true;
+        window.clearTimeout(hardTimeout);
+        setPos([p.coords.latitude, p.coords.longitude]);
+      },
+      (err) => {
+        console.warn("geo error", err);
+        window.clearTimeout(hardTimeout);
+        fallback("Couldn't get your location — using default");
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
-    return () => navigator.geolocation.clearWatch(id);
+    return () => {
+      window.clearTimeout(hardTimeout);
+      navigator.geolocation.clearWatch(id);
+    };
   }, []);
 
   const submitRequest = async () => {
