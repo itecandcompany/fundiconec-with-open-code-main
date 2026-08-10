@@ -140,6 +140,11 @@
   background: var(--primary);
   opacity: 0.25;
   animation: radar-pulse 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  /* Purely decorative (aria-hidden) — the scale(2.4) animation grows this
+     well past its own container without pointer-events:none, so it was
+     silently intercepting real clicks on nearby buttons (e.g. "Cancel
+     request") for part of every animation cycle. */
+  pointer-events: none;
 }
 .radar-ring.delay-1 { animation-delay: 0.7s; }
 .radar-ring.delay-2 { animation-delay: 1.4s; }
