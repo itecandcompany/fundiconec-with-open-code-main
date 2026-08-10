@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import AppTabBar from "@/components/AppTabBar";
 import JobReceiptDialog from "@/components/JobReceiptDialog";
 import { SERVICE_META, formatTsh, type ServiceKey } from "@/lib/geo";
 import { STATUS_COLORS, type JobStatus } from "@/lib/jobStatus";
+import { useT } from "@/lib/i18n";
 import { Briefcase } from "lucide-react";
 
 export const Route = createFileRoute("/app/jobs")({
@@ -34,6 +36,7 @@ const ACTIVE_STATUSES: JobStatus[] = [
 ];
 
 function JobsHistory() {
+  const t = useT();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState<JobRow[]>([]);
@@ -63,26 +66,32 @@ function JobsHistory() {
   };
 
   return (
-    <div className="min-h-[100svh] bg-background pb-24">
-      <header className="border-b bg-background/90 backdrop-blur px-4 py-4">
-        <h1 className="font-display text-2xl font-bold">Your jobs</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Everything you've requested, past and present.
-        </p>
+    <div className="min-h-[var(--app-100vh)] bg-background pb-24 lg:pb-8 lg:pl-60">
+      <header className="border-b bg-background/90 backdrop-blur px-4 py-4 lg:px-8 lg:py-6">
+        <h1 className="font-display text-2xl font-bold lg:text-3xl">{t("jobs.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t("jobs.subtitle")}</p>
       </header>
 
-      <main className="px-4 py-4 space-y-2 max-w-2xl mx-auto">
+      <main className="px-4 py-4 space-y-2 max-w-2xl mx-auto lg:max-w-5xl lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 lg:px-8 lg:py-6">
         {loading ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="contents" role="status" aria-busy="true" aria-label={t("common.loading")}>
+            {[0, 1, 2, 3].map((i) => (
+              <Card key={i} className="p-3 flex items-center gap-3">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </Card>
+            ))}
+          </div>
         ) : jobs.length === 0 ? (
-          <div className="py-16 text-center">
+          <div className="py-16 text-center lg:col-span-2">
             <div className="mx-auto w-12 h-12 rounded-full bg-muted grid place-items-center mb-3">
               <Briefcase className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="font-medium">No jobs yet</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Request a fundi from the Home tab to get started.
-            </p>
+            <p className="font-medium">{t("jobs.empty")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("jobs.emptyHint")}</p>
           </div>
         ) : (
           jobs.map((job) => {
@@ -102,9 +111,9 @@ function JobsHistory() {
                       {job.problem_title ?? meta.label}
                     </span>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${STATUS_COLORS[job.status]}`}
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_COLORS[job.status]}`}
                     >
-                      {job.status.replace(/_/g, " ")}
+                      {t(`status.${job.status}`)}
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">

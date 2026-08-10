@@ -2,54 +2,45 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import AppTabBar from "@/components/AppTabBar";
 import { FileText, ChevronRight } from "lucide-react";
+import { useT, type TKey } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/help")({
   ssr: false,
   component: Help,
 });
 
-const FAQS = [
-  {
-    q: "How do I request a fundi?",
-    a: "From the Home tab, pick a service, describe the problem, and set a budget. Nearby fundis will send you quotes — accept one and they'll head your way.",
-  },
-  {
-    q: "How is pricing decided?",
-    a: "You set a budget when you request a job. Fundis quote against it, and you pick the quote you're happiest with before any work starts. FundiFast takes a 10% platform fee from the agreed price.",
-  },
-  {
-    q: "Can I message or call my fundi?",
-    a: "Yes — once a fundi is assigned, Chat and Call are available on the tracking screen for the whole job.",
-  },
-  {
-    q: "How do I cancel a request?",
-    a: 'While a job is active, use "Cancel request" on the tracking screen. You\'ll be asked for a short reason, which is shared with the other side.',
-  },
+const FAQS: ReadonlyArray<{ q: TKey; a: TKey }> = [
+  { q: "help.q1", a: "help.a1" },
+  { q: "help.q2", a: "help.a2" },
+  { q: "help.q3", a: "help.a3" },
+  { q: "help.q4", a: "help.a4" },
 ];
 
 function Help() {
+  const t = useT();
+
   return (
-    <div className="min-h-[100svh] bg-background pb-24">
-      <header className="border-b bg-background/90 backdrop-blur px-4 py-4">
-        <h1 className="font-display text-2xl font-bold">Help</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Answers to common questions.</p>
+    <div className="min-h-[var(--app-100vh)] bg-background pb-24 lg:pb-8 lg:pl-60">
+      <header className="border-b bg-background/90 backdrop-blur px-4 py-4 lg:px-8 lg:py-6">
+        <h1 className="font-display text-2xl font-bold lg:text-3xl">{t("help.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t("help.subtitle")}</p>
       </header>
 
-      <main className="px-4 py-4 space-y-2 max-w-2xl mx-auto">
+      <main className="px-4 py-4 space-y-2 max-w-2xl mx-auto lg:max-w-5xl lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 lg:px-8 lg:py-6">
         {FAQS.map((f) => (
           <Card key={f.q} className="p-4">
-            <div className="font-medium text-sm">{f.q}</div>
-            <p className="text-sm text-muted-foreground mt-1">{f.a}</p>
+            <div className="font-medium text-sm">{t(f.q)}</div>
+            <p className="text-sm text-muted-foreground mt-1">{t(f.a)}</p>
           </Card>
         ))}
 
-        <Card className="p-0 overflow-hidden mt-4">
+        <Card className="p-0 overflow-hidden mt-4 lg:col-span-2 lg:mt-0">
           <Link
             to="/privacy"
             className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
           >
             <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="flex-1 text-sm">Privacy Policy</span>
+            <span className="flex-1 text-sm">{t("common.privacy")}</span>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </Link>
         </Card>

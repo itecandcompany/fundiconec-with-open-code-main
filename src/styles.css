@@ -39,6 +39,29 @@
 }
 
 :root {
+  /* `svh` isn't understood by browsers older than ~2022 (many in-app
+     WebViews included) — an unsupported value makes the whole height
+     declaration invalid, collapsing full-screen layout containers to
+     auto height and scrambling every absolutely/fixed-positioned child
+     stacked on top of them. Gate the modern unit behind @supports so
+     older browsers keep the 100vh fallback instead of losing height
+     entirely. */
+  --app-100vh: 100vh;
+
+  /* Height reserved for the bottom tab bar. On desktop the nav becomes a
+     left sidebar instead, so nothing is reserved at the bottom — keeping
+     this as a variable lets layout math stay in CSS classes rather than
+     inline styles, which can't be overridden per-breakpoint. */
+  --app-tabbar-h: 72px;
+}
+@supports (height: 100svh) {
+  :root { --app-100vh: 100svh; }
+}
+@media (min-width: 1024px) {
+  :root { --app-tabbar-h: 0px; }
+}
+
+:root {
   --radius: 1rem;
   --background: #f8faf9;
   --foreground: #191c1c;

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "seed:admin": "node --env-file=.env scripts/seed-admin.mjs"
+    "seed:admin": "node --env-file=.env scripts/seed-admin.mjs",
+    "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

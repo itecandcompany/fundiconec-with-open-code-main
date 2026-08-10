@@ -1,0 +1,39 @@
+{
+  "name": "FundiFast — Hire trusted local fundis",
+  "short_name": "FundiFast",
+  "description": "Request a verified plumber, electrician, carpenter or mechanic nearby, track them live, and agree the price upfront.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8faf9",
+  "theme_color": "#006d39",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Book a fundi",
+      "short_name": "Book",
+      "url": "/app",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Your jobs",
+      "short_name": "Jobs",
+      "url": "/app/jobs",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

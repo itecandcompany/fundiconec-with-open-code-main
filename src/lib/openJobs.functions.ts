@@ -46,20 +46,40 @@ export const getOpenJobsForFundi = createServerFn({ method: "GET" })
     if (fundiError) throw new Error("Unable to load fundi profile");
     if (!fundi) return [];
 
-    const { data, error } = await supabaseAdmin
+    const baseColumns =
+      "id, client_id, fundi_id, service, status, client_lat, client_lng, price, agreed_price, problem_title, problem_description, job_photos, created_at";
+    const first = await supabaseAdmin
       .from("jobs")
-      .select(
-        "id, client_id, fundi_id, service, status, client_lat, client_lng, price, agreed_price, problem_title, problem_description, job_photos, urgency, created_at",
-      )
+      .select(`${baseColumns}, urgency`)
       .eq("service", fundi.service)
       .in("status", ["searching", "quoting"])
       .order("created_at", { ascending: false })
       .limit(25);
+    let data: ({ urgency?: string } & Record<string, unknown>)[] | null = first.data;
+    let error = first.error;
+    // `urgency` may not be migrated onto this database yet (see
+    // supabase/migrations/20260808120000_add_job_urgency.sql) - don't let
+    // that break the whole open-jobs feed, just drop the column and retry.
+    if (
+      error &&
+      (error.code === "42703" || error.code === "PGRST204") &&
+      /urgency/i.test(error.message)
+    ) {
+      const retry = await supabaseAdmin
+        .from("jobs")
+        .select(baseColumns)
+        .eq("service", fundi.service)
+        .in("status", ["searching", "quoting"])
+        .order("created_at", { ascending: false })
+        .limit(25);
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) throw new Error("Unable to load open jobs");
     return (data ?? []).map((job) => ({
       ...job,
-      client_lat: Math.round(job.client_lat * 100) / 100,
-      client_lng: Math.round(job.client_lng * 100) / 100,
+      client_lat: Math.round((job.client_lat as number) * 100) / 100,
+      client_lng: Math.round((job.client_lng as number) * 100) / 100,
     }));
   });

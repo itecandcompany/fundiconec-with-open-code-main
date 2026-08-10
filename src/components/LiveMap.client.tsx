@@ -53,6 +53,22 @@ function FitToFundis({
   return null;
 }
 
+// Leaflet caches its container size and only recomputes on window `resize`.
+// Anything that resizes the map *without* resizing the window — crossing the
+// desktop breakpoint into the side-by-side layout, or the booking sheet
+// expanding over it — leaves Leaflet believing it's still the old size, which
+// renders as grey gutters and tiles/markers landing in the wrong place.
+function AutoResize() {
+  const map = useMap();
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => map.invalidateSize({ animate: false }));
+    ro.observe(map.getContainer());
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
 function CenterOn({ pos }: { pos: [number, number] | null }) {
   const map = useMap();
   const lat = pos?.[0];
@@ -395,58 +411,63 @@ export default function LiveMap({
   const hasActive = !!activeJob;
 
   return (
-    <div className="relative h-full w-full">
-      <MapContainer
-        center={pos}
-        zoom={15}
-        scrollWheelZoom
-        className="h-full w-full"
-        style={{ background: "#0b1220" }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {!hasActive && (
-          <FitToFundis
-            userPos={pos}
-            fundiPositions={list.map(
-              ({ f }) => [f.current_lat!, f.current_lng!] as [number, number],
-            )}
-            follow={follow}
+    // Phone: the sheet overlays the map. Desktop: they sit side by side, so
+    // the map keeps its full height instead of being covered by the form.
+    <div className="relative h-full w-full lg:flex lg:flex-row">
+      <div className="h-full w-full lg:order-last lg:w-auto lg:flex-1">
+        <MapContainer
+          center={pos}
+          zoom={15}
+          scrollWheelZoom
+          className="h-full w-full"
+          style={{ background: "#0b1220" }}
+        >
+          <AutoResize />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/">OSM</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-        )}
-        {hasActive && reverseTrack && fundiPos && <CenterOn pos={fundiPos} />}
-
-        <Marker position={pos} icon={userLocationIcon()}>
-          <Popup>You are here</Popup>
-        </Marker>
-
-        {!hasActive &&
-          list.map(({ f }) => (
-            <Marker
-              key={f.id}
-              position={[f.current_lat!, f.current_lng!]}
-              icon={servicePin(service)}
-              eventHandlers={{ click: () => setFollow(false) }}
+          {!hasActive && (
+            <FitToFundis
+              userPos={pos}
+              fundiPositions={list.map(
+                ({ f }) => [f.current_lat!, f.current_lng!] as [number, number],
+              )}
+              follow={follow}
             />
-          ))}
+          )}
+          {hasActive && reverseTrack && fundiPos && <CenterOn pos={fundiPos} />}
 
-        {activeJob && (
-          <ActiveJobLayer
-            job={activeJob}
-            userPos={pos}
-            fundiName={activeFundi?.name ?? "Fundi"}
-            fundiPhone={activeFundi?.phone ?? null}
-            reverseTrack={reverseTrack}
-            onReverseTrackChange={setReverseTrack}
-            onClose={() => {
-              setActiveJob(null);
-              setReverseTrack(false);
-            }}
-          />
-        )}
-      </MapContainer>
+          <Marker position={pos} icon={userLocationIcon()}>
+            <Popup>You are here</Popup>
+          </Marker>
+
+          {!hasActive &&
+            list.map(({ f }) => (
+              <Marker
+                key={f.id}
+                position={[f.current_lat!, f.current_lng!]}
+                icon={servicePin(service)}
+                eventHandlers={{ click: () => setFollow(false) }}
+              />
+            ))}
+
+          {activeJob && (
+            <ActiveJobLayer
+              job={activeJob}
+              userPos={pos}
+              fundiName={activeFundi?.name ?? "Fundi"}
+              fundiPhone={activeFundi?.phone ?? null}
+              reverseTrack={reverseTrack}
+              onReverseTrackChange={setReverseTrack}
+              onClose={() => {
+                setActiveJob(null);
+                setReverseTrack(false);
+              }}
+            />
+          )}
+        </MapContainer>
+      </div>
 
       {(!hideIdleSheet || activeJob) && (
         <BookingSheet

@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { toUserMessage } from "@/lib/errorMessages";
 import JobReceiptDialog from "@/components/JobReceiptDialog";
 import CancelJobDialog from "@/components/CancelJobDialog";
+import { useT, type TFunc } from "@/lib/i18n";
 
 type ProblemTemplate = {
   id: string;
@@ -83,16 +84,7 @@ type ActiveJob = {
   signature_url?: string | null;
 };
 
-const STAGE_LABEL: Record<ActiveJob["status"], string> = {
-  searching: "Finding fundis nearby…",
-  quoting: "Review fundi quotes",
-  accepted: "Fundi accepted",
-  on_the_way: "Fundi is on the way",
-  arrived: "Fundi has arrived",
-  in_progress: "Job in progress",
-  completed: "Job complete",
-  cancelled: "Cancelled",
-};
+const stageLabel = (t: TFunc, status: ActiveJob["status"]) => t(`status.${status}`);
 
 export default function BookingSheet({
   service,
@@ -111,8 +103,9 @@ export default function BookingSheet({
   onClose: () => void;
   onPickQuoteFundi?: (fundiId: string) => void;
 }) {
+  const t = useT();
   const { user } = useAuth();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [templates, setTemplates] = useState<ProblemTemplate[]>([]);
   const [pickedTemplate, setPickedTemplate] = useState<ProblemTemplate | null>(null);
   const [title, setTitle] = useState("");
@@ -391,10 +384,8 @@ export default function BookingSheet({
     return (
       <Shell expanded={expanded} setExpanded={setExpanded}>
         <div className="px-4">
-          <h2 className="text-2xl font-display font-bold leading-tight">What needs fixing?</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Describe it, set your budget, fundis will quote you back.
-          </p>
+          <h2 className="text-2xl font-display font-bold leading-tight">{t("booking.title")}</h2>
+          <p className="text-sm text-muted-foreground mt-1">{t("booking.subtitle")}</p>
         </div>
 
         {/* Service tiles */}
@@ -405,7 +396,15 @@ export default function BookingSheet({
             return (
               <button
                 key={k}
-                onClick={() => setService(k)}
+                aria-pressed={active}
+                onClick={() => {
+                  setService(k);
+                  // Picking a service *is* the intent to book, so open the form
+                  // with it. Without this the sheet stays collapsed on phones
+                  // and the tap looks like it did nothing — the form is there,
+                  // but hidden below the fold behind the drag handle.
+                  setExpanded(true);
+                }}
                 className={`shrink-0 w-26 flex flex-col items-center gap-2 rounded-2xl border px-3 py-4 text-center transition-colors ${
                   active
                     ? "border-primary bg-primary/5"
@@ -424,157 +423,159 @@ export default function BookingSheet({
           })}
         </div>
 
-        {expanded && (
-          <div className="px-4 mt-4 space-y-4 pb-6">
-            {/* Templates */}
-            {templates.length > 0 && (
-              <div>
-                <div className="text-xs uppercase text-muted-foreground mb-2">Common problems</div>
-                <div className="flex flex-wrap gap-2">
-                  {templates.map((t) => {
-                    const active = pickedTemplate?.id === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => {
-                          setPickedTemplate(active ? null : t);
-                          if (!active) {
-                            setTitle(t.title);
-                            setBudget(String(t.suggested_price));
-                          }
-                        }}
-                        className={`text-left rounded-xl px-3 py-2 border text-sm transition-colors ${
-                          active
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary"
-                        }`}
-                      >
-                        <div className="font-medium">{t.title}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          from {formatTsh(t.suggested_price)}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Input
-                placeholder="What's the problem? (e.g. Leaking kitchen sink)"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  setPickedTemplate(null);
-                }}
-              />
-              <Textarea
-                placeholder="More details (optional)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-              />
-              <Input
-                type="number"
-                inputMode="numeric"
-                placeholder={`Budget (TSh) — suggested ${
-                  pickedTemplate?.suggested_price ?? SERVICE_META[service].price
-                }`}
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-              />
-            </div>
-
-            {/* Photos */}
-            <div className="space-y-2">
-              <div className="flex items-end justify-between">
-                <span className="text-sm font-semibold">Photos</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {files.length}/5 added
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Photos help the fundi quote correctly before travelling.
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {files.map((f, i) => (
-                  <div key={i} className="relative aspect-square">
-                    <img
-                      alt=""
-                      src={URL.createObjectURL(f)}
-                      className="h-full w-full object-cover rounded-xl border"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setFiles((arr) => arr.filter((_, idx) => idx !== i))}
-                      aria-label="Remove photo"
-                      className="absolute top-1 right-1 bg-background/90 border rounded-full p-1 shadow-sm"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                {files.length < 5 && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="aspect-square rounded-xl border-2 border-dashed grid place-items-center gap-1 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
-                  >
-                    <Camera className="h-5 w-5" />
-                    <span className="text-[11px] font-medium">Add photo</span>
-                  </button>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => onPickFiles(e.target.files)}
-                />
-              </div>
-            </div>
-
-            {/* Urgency */}
+        {/* Collapsed by default on phones so the map stays visible; the desktop
+            panel has the room to always show the full form. */}
+        <div className={`px-4 mt-4 space-y-4 pb-6 lg:block ${expanded ? "" : "hidden"}`}>
+          {/* Templates */}
+          {templates.length > 0 && (
             <div>
-              <div className="text-sm font-semibold mb-2">When do you need it?</div>
-              <div className="flex bg-muted border rounded-xl p-1 gap-1">
-                {(
-                  [
-                    ["now", "Now"],
-                    ["today", "Today"],
-                    ["schedule", "Schedule"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setUrgency(value)}
-                    className={`flex-1 py-2.5 text-center rounded-lg text-[13px] font-medium transition-colors ${
-                      urgency === value
-                        ? "bg-primary text-primary-foreground"
-                        : "text-foreground/80 hover:bg-background/60"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="text-xs uppercase text-muted-foreground mb-2">
+                {t("booking.commonProblems")}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {templates.map((tpl) => {
+                  const active = pickedTemplate?.id === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => {
+                        setPickedTemplate(active ? null : tpl);
+                        if (!active) {
+                          setTitle(tpl.title);
+                          setBudget(String(tpl.suggested_price));
+                        }
+                      }}
+                      className={`text-left rounded-xl px-3 py-2 border text-sm transition-colors ${
+                        active
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary"
+                      }`}
+                    >
+                      <div className="font-medium">{tpl.title}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {t("booking.from", { price: formatTsh(tpl.suggested_price) })}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          )}
 
-            <Button className="w-full h-12 text-base" onClick={submitRequest} disabled={submitting}>
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  Request a {SERVICE_META[service].label.toLowerCase()}
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
+          <div className="space-y-2">
+            <Input
+              placeholder={t("booking.problemPlaceholder")}
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setPickedTemplate(null);
+              }}
+            />
+            <Textarea
+              placeholder={t("booking.detailsPlaceholder")}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+            <Input
+              type="number"
+              inputMode="numeric"
+              placeholder={t("booking.budgetPlaceholder", {
+                price: pickedTemplate?.suggested_price ?? SERVICE_META[service].price,
+              })}
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+            />
           </div>
-        )}
+
+          {/* Photos */}
+          <div className="space-y-2">
+            <div className="flex items-end justify-between">
+              <span className="text-sm font-semibold">{t("booking.photos")}</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t("booking.photosAdded", { count: files.length })}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("booking.photosHint")}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {files.map((f, i) => (
+                <div key={i} className="relative aspect-square">
+                  <img
+                    alt=""
+                    src={URL.createObjectURL(f)}
+                    className="h-full w-full object-cover rounded-xl border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFiles((arr) => arr.filter((_, idx) => idx !== i))}
+                    aria-label={t("booking.removePhoto")}
+                    className="absolute top-1 right-1 bg-background/90 border rounded-full p-1 shadow-sm"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              {files.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square rounded-xl border-2 border-dashed grid place-items-center gap-1 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <Camera className="h-5 w-5" />
+                  <span className="text-[11px] font-medium">{t("booking.addPhoto")}</span>
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => onPickFiles(e.target.files)}
+              />
+            </div>
+          </div>
+
+          {/* Urgency */}
+          <div>
+            <div className="text-sm font-semibold mb-2">{t("booking.whenNeeded")}</div>
+            <div className="flex bg-muted border rounded-xl p-1 gap-1">
+              {(
+                [
+                  ["now", "booking.now"],
+                  ["today", "booking.today"],
+                  ["schedule", "booking.schedule"],
+                ] as const
+              ).map(([value, labelKey]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setUrgency(value)}
+                  className={`flex-1 py-2.5 text-center rounded-lg text-[13px] font-medium transition-colors ${
+                    urgency === value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-foreground/80 hover:bg-background/60"
+                  }`}
+                >
+                  {t(labelKey)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <Button className="w-full h-12 text-base" onClick={submitRequest} disabled={submitting}>
+            {submitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                {t("booking.request", {
+                  service: SERVICE_META[service].label.toLowerCase(),
+                })}
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
       </Shell>
     );
   }
@@ -587,7 +588,7 @@ export default function BookingSheet({
           <div className="flex items-center justify-between gap-2">
             <div>
               <div className="text-xs uppercase text-muted-foreground">
-                {STAGE_LABEL[activeJob.status]}
+                {stageLabel(t, activeJob.status)}
               </div>
               <div className="font-display font-bold text-lg leading-tight">
                 {activeJob.problem_title}
@@ -596,7 +597,7 @@ export default function BookingSheet({
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Cancel request"
+              aria-label={t("booking.cancelRequest")}
               onClick={() => setCancelOpen(true)}
             >
               <X className="h-4 w-4" />
@@ -606,14 +607,14 @@ export default function BookingSheet({
           {quotes.length === 0 ? (
             <div className="grid place-items-center py-6">
               <RadarPulse />
-              <div className="mt-3 text-sm text-muted-foreground">
-                Searching for available fundis nearby…
-              </div>
+              <div className="mt-3 text-sm text-muted-foreground">{t("booking.searching")}</div>
             </div>
           ) : (
             <div className="mt-3 space-y-2">
               <div className="text-xs text-muted-foreground">
-                {quotes.length} fundi{quotes.length > 1 ? "s" : ""} responded
+                {t(quotes.length === 1 ? "booking.responded" : "booking.respondedPlural", {
+                  count: quotes.length,
+                })}
               </div>
               {quotes.map((q) => {
                 const fp = fundiProfiles[q.fundi_id];
@@ -656,28 +657,34 @@ export default function BookingSheet({
                     <div className="text-right">
                       <div className="font-bold text-base">{formatTsh(q.price)}</div>
                       <div className="flex gap-1 mt-1">
-                        <span
-                          role="button"
-                          tabIndex={0}
+                        {/* Real buttons, not role="button" spans: as spans these
+                            took focus but had no key handler, so Enter/Space
+                            did nothing. Keydown is stopped as well as click so
+                            activating them doesn't also fire the card's own
+                            "open details" handler. */}
+                        <button
+                          type="button"
+                          aria-label={t("booking.messageFundi")}
                           onClick={(e) => {
                             e.stopPropagation();
                             onOpenChat(activeJob.id, fp?.full_name ?? "Fundi");
                           }}
+                          onKeyDown={(e) => e.stopPropagation()}
                           className="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-muted"
                         >
                           <MessageCircle className="h-3 w-3" />
-                        </span>
-                        <span
-                          role="button"
-                          tabIndex={0}
+                        </button>
+                        <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             acceptQuote(q);
                           }}
+                          onKeyDown={(e) => e.stopPropagation()}
                           className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                         >
-                          <Check className="h-3 w-3" /> Accept
-                        </span>
+                          <Check className="h-3 w-3" /> {t("booking.accept")}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -720,13 +727,15 @@ export default function BookingSheet({
           <div className="mx-auto w-14 h-14 rounded-full bg-success/15 text-success grid place-items-center">
             <Check className="h-7 w-7" />
           </div>
-          <div className="mt-2 font-display font-bold text-xl">Job complete</div>
+          <div className="mt-2 font-display font-bold text-xl">{t("booking.jobComplete")}</div>
           <div className="text-sm text-muted-foreground">
-            Total paid · {formatTsh(activeJob.agreed_price ?? activeJob.price)}
+            {t("booking.totalPaid", {
+              price: formatTsh(activeJob.agreed_price ?? activeJob.price),
+            })}
           </div>
           <div className="mt-4">
             <div className="text-sm font-medium mb-2">
-              How was {activeFundi?.full_name ?? "the fundi"}?
+              {t("booking.howWas", { name: activeFundi?.full_name ?? "Fundi" })}
             </div>
             <div className="flex justify-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
@@ -740,7 +749,7 @@ export default function BookingSheet({
               ))}
             </div>
             <Textarea
-              placeholder="Leave a short review (optional)"
+              placeholder={t("booking.reviewPlaceholder")}
               value={review}
               onChange={(e) => setReview(e.target.value)}
               rows={2}
@@ -748,10 +757,10 @@ export default function BookingSheet({
             />
             <div className="flex gap-2 mt-3">
               <Button variant="outline" className="flex-1" onClick={() => setReceiptOpen(true)}>
-                View receipt
+                {t("booking.viewReceipt")}
               </Button>
               <Button className="flex-1" onClick={submitRating} disabled={rating === 0}>
-                Submit
+                {t("common.submit")}
               </Button>
             </div>
           </div>
@@ -786,7 +795,7 @@ export default function BookingSheet({
           <div className="font-display text-3xl font-bold text-primary leading-none">
             {etaMinutes(km || 1)} min
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{STAGE_LABEL[activeJob.status]}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{stageLabel(t, activeJob.status)}</p>
         </div>
 
         {/* Fundi profile card */}
@@ -826,7 +835,7 @@ export default function BookingSheet({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Current job
+                {t("booking.currentJob")}
               </div>
               <div className="font-medium truncate">{activeJob.problem_title ?? jobMeta.label}</div>
             </div>
@@ -837,7 +846,7 @@ export default function BookingSheet({
           <div className="h-px bg-border" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">{km.toFixed(1)} km away</span>
+            <span className="truncate">{t("booking.kmAway", { km: km.toFixed(1) })}</span>
             <span className="ml-auto font-semibold text-foreground">
               {formatTsh(activeJob.agreed_price ?? activeJob.price)}
             </span>
@@ -850,10 +859,10 @@ export default function BookingSheet({
           <div className="rounded-xl border bg-muted/30 p-3 space-y-3">
             {activeJob.started_at && <WorkTimer startedAt={activeJob.started_at} />}
             {activeJob.before_photos && activeJob.before_photos.length > 0 && (
-              <ProofRow label="Before" urls={activeJob.before_photos} />
+              <ProofRow label={t("booking.before")} urls={activeJob.before_photos} />
             )}
             {activeJob.after_photos && activeJob.after_photos.length > 0 && (
-              <ProofRow label="After" urls={activeJob.after_photos} />
+              <ProofRow label={t("booking.after")} urls={activeJob.after_photos} />
             )}
           </div>
         )}
@@ -865,11 +874,11 @@ export default function BookingSheet({
             className="flex-1 h-13 text-base"
             onClick={() => onOpenChat(activeJob.id, activeFundi?.full_name ?? "Fundi")}
           >
-            <MessageCircle className="h-4 w-4" /> Chat
+            <MessageCircle className="h-4 w-4" /> {t("booking.chat")}
           </Button>
           <Button asChild className="flex-1 h-13 text-base" disabled={!activeFundi?.phone}>
             <a href={activeFundi?.phone ? `tel:${activeFundi.phone}` : "#"}>
-              <Phone className="h-4 w-4" /> Call
+              <Phone className="h-4 w-4" /> {t("booking.call")}
             </a>
           </Button>
         </div>
@@ -877,7 +886,7 @@ export default function BookingSheet({
           onClick={() => setCancelOpen(true)}
           className="w-full text-center text-sm font-medium text-destructive py-1 active:opacity-70 transition-opacity"
         >
-          Cancel request
+          {t("booking.cancelRequest")}
         </button>
       </div>
       <CancelJobDialog
@@ -908,12 +917,14 @@ function QuoteDetailsDialog({
   onApprove: (q: Quote) => void;
   onChat: (q: Quote) => void;
 }) {
+  // Must precede the early return — hooks can't sit behind a conditional.
+  const t = useT();
   if (!quote) return null;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Quote details</DialogTitle>
+          <DialogTitle>{t("booking.quoteDetails")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="rounded-2xl border overflow-hidden">
@@ -931,8 +942,10 @@ function QuoteDetailsDialog({
             </div>
             <div className="p-4 flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Total</div>
-                <div className="text-[11px] text-muted-foreground">For: {job.problem_title}</div>
+                <div className="text-sm text-muted-foreground">{t("common.total")}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {t("booking.forJob", { title: job.problem_title ?? "" })}
+                </div>
               </div>
               <div className="font-display text-2xl font-bold text-primary">
                 {formatTsh(quote.price)}
@@ -941,7 +954,7 @@ function QuoteDetailsDialog({
             {quote.note && (
               <div className="px-4 pb-4">
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                  Fundi's note
+                  {t("booking.fundiNote")}
                 </div>
                 <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
                   <p className="text-sm italic">"{quote.note}"</p>
@@ -951,7 +964,7 @@ function QuoteDetailsDialog({
             {job.job_photos?.length > 0 && (
               <div className="px-4 pb-4">
                 <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
-                  Your job photos
+                  {t("booking.yourPhotos")}
                 </div>
                 <div className="flex gap-2 overflow-x-auto scrollbar-none">
                   {job.job_photos.map((u, i) => (
@@ -968,10 +981,10 @@ function QuoteDetailsDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Button className="w-full h-12" onClick={() => onApprove(quote)}>
-              Approve quote
+              {t("booking.approveQuote")}
             </Button>
             <Button variant="outline" className="w-full" onClick={() => onChat(quote)}>
-              <MessageCircle className="h-4 w-4" /> Message fundi
+              <MessageCircle className="h-4 w-4" /> {t("booking.messageFundi")}
             </Button>
           </div>
         </div>
@@ -1024,16 +1037,24 @@ function Shell({
   expanded: boolean;
   setExpanded: (v: boolean) => void;
 }) {
+  const t = useT();
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-[1000] bolt-sheet pointer-events-auto">
+    // Phone: a draggable sheet overlaying the map, collapsed by default so the
+    // map stays visible. Desktop: a static left-hand panel beside the map, where
+    // there's room to show the whole form at once — so the handle is hidden and
+    // the collapse state stops applying (see the `lg:block` escapes below).
+    <div className="absolute bottom-0 left-0 right-0 z-[1000] bolt-sheet pointer-events-auto lg:static lg:z-auto lg:flex lg:h-full lg:w-[420px] lg:shrink-0 lg:flex-col lg:rounded-none lg:border-r lg:shadow-none">
       <button
-        className="w-full"
-        aria-label={expanded ? "Collapse" : "Expand"}
+        className="w-full lg:hidden"
+        aria-label={expanded ? t("booking.collapse") : t("booking.expand")}
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="bolt-handle" />
       </button>
-      <div className="pb-3 max-h-[78vh] overflow-y-auto">{children}</div>
+      <div className="max-h-[78vh] overflow-y-auto pb-3 lg:max-h-none lg:flex-1 lg:pt-6">
+        {children}
+      </div>
     </div>
   );
 }

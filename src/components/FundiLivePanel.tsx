@@ -369,13 +369,20 @@ export default function FundiLivePanel() {
       try {
         data = await loadOpenJobs();
       } catch (e) {
+        if (cancelled) return;
         const isEmailBlocked =
           (e instanceof Response && e.status === 403) ||
           (e instanceof Error && /email not confirmed/i.test(e.message));
-        if (!cancelled && isEmailBlocked) {
+        if (isEmailBlocked) {
           toast.error("Confirm your email first", {
             description: "Confirm your email to start receiving job requests.",
           });
+        } else {
+          // Anything else here means the open-jobs feed is silently empty —
+          // that's the whole point of this screen, so it must never fail
+          // without telling the fundi.
+          console.error("Failed to load open jobs:", e);
+          toast.error("Couldn't load nearby requests — pull to refresh or try again shortly.");
         }
         return;
       }
