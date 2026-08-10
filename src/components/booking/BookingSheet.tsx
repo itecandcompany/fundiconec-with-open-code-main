@@ -261,25 +261,45 @@ export default function BookingSheet({
       failedPhotoCount = uploaded.failedCount;
     }
     const commission = Math.round(startingPrice * 0.1);
-    const { error } = await supabase.from("jobs").insert({
+    const basePayload = {
       client_id: user.id,
       service,
       price: startingPrice,
       commission,
-      status: "searching",
+      status: "searching" as const,
       client_lat: pos[0],
       client_lng: pos[1],
       problem_title: finalTitle,
       problem_description: description.trim() || null,
       job_photos: photoUrls,
-      urgency,
-    });
+    };
+    let { error } = await supabase.from("jobs").insert({ ...basePayload, urgency });
+    // The `urgency` column may not be migrated onto this database yet — an
+    // unmigrated, non-essential preference field shouldn't block the whole
+    // booking. Retry once without it rather than failing the request.
+    let urgencyDropped = false;
+    if (
+      error &&
+      // 42703: raw Postgres "undefined column". PGRST204: PostgREST's own
+      // schema-cache validation rejects an insert payload key it doesn't
+      // recognize — this is the one Supabase actually returns here.
+      (error.code === "42703" || error.code === "PGRST204") &&
+      /urgency/i.test(error.message)
+    ) {
+      urgencyDropped = true;
+      ({ error } = await supabase.from("jobs").insert(basePayload));
+    }
     setSubmitting(false);
     if (error) {
       toast.error(toUserMessage(error));
       return;
     }
     toast.success("Request sent — fundis are sending quotes");
+    if (urgencyDropped) {
+      toast.error(
+        "Your timing preference couldn't be saved (pending a backend update) — the request went through anyway.",
+      );
+    }
     if (failedPhotoCount > 0) {
       toast.error(
         `${failedPhotoCount} photo${failedPhotoCount > 1 ? "s" : ""} failed to upload — job was still submitted.`,
