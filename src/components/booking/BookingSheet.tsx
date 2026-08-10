@@ -296,8 +296,8 @@ export default function BookingSheet({
     }
     toast.success("Request sent — fundis are sending quotes");
     if (urgencyDropped) {
-      toast.error(
-        "Your timing preference couldn't be saved (pending a backend update) — the request went through anyway.",
+      toast.message(
+        "Note: your timing preference wasn't saved this time — everything else went through fine.",
       );
     }
     if (failedPhotoCount > 0) {
