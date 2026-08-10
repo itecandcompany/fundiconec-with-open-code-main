@@ -73,7 +73,9 @@ const en = {
   "booking.now": "Now",
   "booking.today": "Today",
   "booking.schedule": "Schedule",
-  "booking.request": "Request a {service}",
+  // No article: "a/an" depends on the next word's sound, which doesn't survive
+  // interpolation ("Request a electrician") and has no Swahili equivalent.
+  "booking.request": "Request {service}",
   "booking.searching": "Searching for available fundis nearby…",
   "booking.responded": "{count} fundi responded",
   "booking.respondedPlural": "{count} fundis responded",

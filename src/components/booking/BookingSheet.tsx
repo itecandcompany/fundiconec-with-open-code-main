@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { toUserMessage } from "@/lib/errorMessages";
 import JobReceiptDialog from "@/components/JobReceiptDialog";
 import CancelJobDialog from "@/components/CancelJobDialog";
-import { useT, type TFunc } from "@/lib/i18n";
+import { useT, useI18n, type TFunc } from "@/lib/i18n";
 
 type ProblemTemplate = {
   id: string;
@@ -103,7 +103,11 @@ export default function BookingSheet({
   onClose: () => void;
   onPickQuoteFundi?: (fundiId: string) => void;
 }) {
-  const t = useT();
+  const { t, lang } = useI18n();
+  // SERVICE_META already carries both names ("Electrician" / "Umeme"), so the
+  // dictionary doesn't need to duplicate them.
+  const serviceName = (k: ServiceKey) =>
+    lang === "sw" ? SERVICE_META[k].sw : SERVICE_META[k].label;
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [templates, setTemplates] = useState<ProblemTemplate[]>([]);
@@ -568,9 +572,7 @@ export default function BookingSheet({
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {t("booking.request", {
-                  service: SERVICE_META[service].label.toLowerCase(),
-                })}
+                {t("booking.request", { service: serviceName(service) })}
                 <ArrowRight className="h-4 w-4" />
               </>
             )}
