@@ -56,6 +56,18 @@ function isConnectivityError(error: unknown) {
 
 async function runOperation(operation: QueueOperation) {
   if (operation.kind === "job-update") {
+    // The job may have moved to a terminal state (e.g. cancelled by the
+    // other party) while this update sat queued offline — replaying a stale
+    // status patch over that would silently resurrect a dead job. Terminal
+    // states never advance further, so just drop the operation.
+    const { data: current, error: fetchError } = await supabase
+      .from("jobs")
+      .select("status")
+      .eq("id", operation.jobId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (current?.status === "completed" || current?.status === "cancelled") return;
+
     const { error } = await supabase
       .from("jobs")
       .update(operation.payload)

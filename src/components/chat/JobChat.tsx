@@ -5,6 +5,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Check, CheckCheck } from "lucide-react";
+import { toast } from "sonner";
+import { toUserMessage } from "@/lib/errorMessages";
 
 type Msg = {
   id: string;
@@ -92,7 +94,11 @@ export default function JobChat({
       .from("job_messages")
       .insert({ job_id: jobId, sender_id: user.id, body });
     setSending(false);
-    if (!error) setText("");
+    if (error) {
+      toast.error(toUserMessage(error));
+      return;
+    }
+    setText("");
   };
 
   return (
@@ -147,7 +153,12 @@ export default function JobChat({
             placeholder="Type a message…"
             className="flex-1"
           />
-          <Button type="submit" disabled={sending || !text.trim()} size="icon">
+          <Button
+            type="submit"
+            disabled={sending || !text.trim()}
+            size="icon"
+            aria-label="Send message"
+          >
             <Send className="h-4 w-4" />
           </Button>
         </form>

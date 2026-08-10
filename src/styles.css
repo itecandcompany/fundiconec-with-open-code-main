@@ -34,73 +34,73 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
 :root {
   --radius: 1rem;
-  --background: oklch(0.99 0.005 95);
-  --foreground: oklch(0.18 0.02 150);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 150);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 150);
+  --background: #f8faf9;
+  --foreground: #191c1c;
+  --card: #ffffff;
+  --card-foreground: #191c1c;
+  --popover: #ffffff;
+  --popover-foreground: #191c1c;
   /* FundiFast green — tool-belt, utility, Tanzania nature */
-  --primary: oklch(0.58 0.18 155);
-  --primary-foreground: oklch(0.99 0.005 95);
-  --primary-glow: oklch(0.72 0.17 155);
-  --secondary: oklch(0.95 0.02 150);
-  --secondary-foreground: oklch(0.25 0.04 150);
-  --muted: oklch(0.96 0.008 150);
-  --muted-foreground: oklch(0.5 0.02 150);
-  --accent: oklch(0.78 0.19 75);  /* warm amber accent */
-  --accent-foreground: oklch(0.2 0.05 70);
-  --destructive: oklch(0.58 0.22 27);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.65 0.18 155);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.78 0.18 75);
-  --warning-foreground: oklch(0.2 0.05 70);
-  --border: oklch(0.92 0.01 150);
-  --input: oklch(0.92 0.01 150);
-  --ring: oklch(0.58 0.18 155);
+  --primary: #006d39;
+  --primary-foreground: #ffffff;
+  --primary-glow: #16a75c;
+  --secondary: #dce1de;
+  --secondary-foreground: #191c1c;
+  --muted: #eceeed;
+  --muted-foreground: #3d4a3f;
+  --accent: #d17e00; /* warm amber accent */
+  --accent-foreground: #412400;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --success: #16a75c;
+  --success-foreground: #ffffff;
+  --warning: #d17e00;
+  --warning-foreground: #412400;
+  --border: #bccabc;
+  --input: #bccabc;
+  --ring: #006d39;
 
-  --gradient-primary: linear-gradient(135deg, oklch(0.58 0.18 155), oklch(0.72 0.17 155));
-  --gradient-hero: linear-gradient(160deg, oklch(0.58 0.18 155) 0%, oklch(0.48 0.14 170) 100%);
-  --gradient-accent: linear-gradient(135deg, oklch(0.78 0.19 75), oklch(0.7 0.17 45));
-  --shadow-elegant: 0 20px 50px -20px oklch(0.58 0.18 155 / 0.35);
-  --shadow-glow: 0 0 40px oklch(0.72 0.17 155 / 0.4);
-  --shadow-card: 0 4px 20px -4px oklch(0.18 0.02 150 / 0.08);
+  --gradient-primary: linear-gradient(135deg, #006d39, #16a75c);
+  --gradient-hero: linear-gradient(160deg, #006d39 0%, #004d29 100%);
+  --gradient-accent: linear-gradient(135deg, #d17e00, #895100);
+  --shadow-elegant: 0 20px 50px -20px rgb(0 109 57 / 0.35);
+  --shadow-glow: 0 0 40px rgb(22 167 92 / 0.4);
+  --shadow-card: 0 4px 20px -4px rgb(13 18 17 / 0.08);
 
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark {
-  --background: oklch(0.15 0.02 155);
-  --foreground: oklch(0.96 0.01 95);
-  --card: oklch(0.2 0.025 155);
-  --card-foreground: oklch(0.96 0.01 95);
-  --popover: oklch(0.2 0.025 155);
-  --popover-foreground: oklch(0.96 0.01 95);
-  --primary: oklch(0.72 0.17 155);
-  --primary-foreground: oklch(0.15 0.02 155);
-  --primary-glow: oklch(0.82 0.14 155);
-  --secondary: oklch(0.25 0.03 155);
-  --secondary-foreground: oklch(0.96 0.01 95);
-  --muted: oklch(0.25 0.03 155);
-  --muted-foreground: oklch(0.7 0.02 150);
-  --accent: oklch(0.78 0.19 75);
-  --accent-foreground: oklch(0.2 0.05 70);
-  --destructive: oklch(0.65 0.22 27);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.72 0.17 155);
-  --success-foreground: oklch(0.15 0.02 155);
-  --warning: oklch(0.78 0.18 75);
-  --warning-foreground: oklch(0.2 0.05 70);
-  --border: oklch(0.3 0.02 155);
-  --input: oklch(0.3 0.02 155);
-  --ring: oklch(0.72 0.17 155);
+  --background: #2e3131;
+  --foreground: #eff1f0;
+  --card: #363a39;
+  --card-foreground: #eff1f0;
+  --popover: #363a39;
+  --popover-foreground: #eff1f0;
+  --primary: #5fde8c;
+  --primary-foreground: #00210d;
+  --primary-glow: #7dfba6;
+  --secondary: #434846;
+  --secondary-foreground: #dfe3e1;
+  --muted: #3d4341;
+  --muted-foreground: #a8b3ac;
+  --accent: #ffb86c;
+  --accent-foreground: #2c1700;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --success: #5fde8c;
+  --success-foreground: #00210d;
+  --warning: #ffb86c;
+  --warning-foreground: #2c1700;
+  --border: #4a504e;
+  --input: #4a504e;
+  --ring: #5fde8c;
 }
 
 @layer base {
@@ -147,16 +147,16 @@
 /* Bolt-style sheet — pure white with elevation, drag handle */
 .bolt-sheet {
   background: var(--card);
-  border-top-left-radius: 1.75rem;
-  border-top-right-radius: 1.75rem;
-  box-shadow: 0 -10px 40px -10px oklch(0.18 0.02 150 / 0.18);
+  border-top-left-radius: 1.5rem;
+  border-top-right-radius: 1.5rem;
+  box-shadow: 0px -4px 20px rgb(13 18 17 / 0.08);
 }
 .bolt-handle {
-  width: 36px;
-  height: 4px;
+  width: 48px;
+  height: 6px;
   border-radius: 4px;
-  background: oklch(0.8 0.01 150);
-  margin: 8px auto 4px;
+  background: color-mix(in oklab, var(--border) 70%, transparent);
+  margin: 10px auto 6px;
 }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }

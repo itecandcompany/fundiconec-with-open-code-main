@@ -95,7 +95,7 @@ export default function JobReceiptDialog({
         ) : (
           <div className="space-y-4">
             <div className="text-center">
-              <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 grid place-items-center">
+              <div className="mx-auto w-12 h-12 rounded-full bg-success/15 text-success grid place-items-center">
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div className="mt-2 font-display font-bold text-xl">Job complete</div>
@@ -107,10 +107,10 @@ export default function JobReceiptDialog({
             <div className="rounded-2xl border p-4 space-y-2 bg-card">
               <div className="flex items-center gap-2">
                 <div
-                  className="w-9 h-9 rounded-full grid place-items-center text-base"
+                  className="w-9 h-9 rounded-full grid place-items-center"
                   style={{ background: meta?.color, color: "white" }}
                 >
-                  {meta?.icon}
+                  {meta && <meta.Icon className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0">
                   <div className="font-semibold leading-tight truncate">
@@ -146,9 +146,7 @@ export default function JobReceiptDialog({
                     <Star
                       key={n}
                       className={`h-4 w-4 ${
-                        n <= rating.stars
-                          ? "fill-yellow-500 text-yellow-500"
-                          : "text-muted-foreground"
+                        n <= rating.stars ? "fill-accent text-accent" : "text-muted-foreground"
                       }`}
                     />
                   ))}

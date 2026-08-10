@@ -101,10 +101,10 @@ function passwordScore(pw: string) {
 }
 
 function strengthMeta(score: number) {
-  if (score <= 1) return { label: "Weak", color: "bg-red-500", text: "text-red-500" };
-  if (score <= 3) return { label: "Fair", color: "bg-amber-500", text: "text-amber-600" };
-  if (score <= 4) return { label: "Good", color: "bg-lime-500", text: "text-lime-600" };
-  return { label: "Strong", color: "bg-emerald-500", text: "text-emerald-600" };
+  if (score <= 1) return { label: "Weak", color: "bg-destructive", text: "text-destructive" };
+  if (score <= 3) return { label: "Fair", color: "bg-warning", text: "text-warning-foreground" };
+  if (score <= 4) return { label: "Good", color: "bg-success", text: "text-success" };
+  return { label: "Strong", color: "bg-success", text: "text-success" };
 }
 
 const PASSWORD_RULES = [
@@ -115,6 +115,7 @@ const PASSWORD_RULES = [
 ];
 
 const GOOGLE_ENABLED = import.meta.env.VITE_ENABLE_GOOGLE_AUTH === "true";
+const GUEST_ENABLED = import.meta.env.VITE_ENABLE_GUEST_AUTH === "true";
 
 function FieldError({ id, error }: { id: string; error?: string }) {
   if (!error) return null;
@@ -300,6 +301,22 @@ function AuthPage() {
     if (error) toast.error(friendlyAuthError(error.message));
   };
 
+  const guestSignIn = async () => {
+    setBusy(true);
+    // full_name is required server-side (profiles.full_name NOT NULL) —
+    // anonymous sessions have no email to fall back on, so it must be
+    // supplied here.
+    const { error } = await supabase.auth.signInAnonymously({
+      options: { data: { full_name: "Guest", role } },
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(friendlyAuthError(error.message));
+      return;
+    }
+    navigate({ to: "/app" });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-hero grid place-items-center text-muted-foreground">
@@ -319,8 +336,12 @@ function AuthPage() {
           <div className="inline-grid h-12 w-12 place-items-center rounded-2xl bg-gradient-primary text-lg font-bold text-primary-foreground shadow-elegant">
             F
           </div>
-          <h1 className="mt-3 font-display text-2xl font-bold">FundiFast</h1>
-          <p className="text-sm text-muted-foreground">Hire trusted local fundis in Tanzania</p>
+          <h1 className="mt-3 font-display text-2xl font-bold text-primary-foreground">
+            FundiFast
+          </h1>
+          <p className="text-sm text-primary-foreground/80">
+            Hire trusted local fundis in Tanzania
+          </p>
         </div>
 
         <Card className="p-6 sm:p-8 shadow-elegant">
@@ -720,6 +741,17 @@ function AuthPage() {
                   ? "Already have an account? Sign in"
                   : "New here? Create an account"}
               </button>
+
+              {GUEST_ENABLED && role === "client" && (
+                <button
+                  type="button"
+                  onClick={guestSignIn}
+                  disabled={busy}
+                  className="mt-2 text-sm text-muted-foreground hover:text-foreground block w-full text-center"
+                >
+                  Continue as guest
+                </button>
+              )}
             </>
           )}
         </Card>
@@ -761,7 +793,7 @@ function PasswordStrength({ password }: { password: string }) {
               key={rule.label}
               className={cn(
                 "flex items-center gap-1.5 text-xs",
-                ok ? "text-emerald-600" : "text-muted-foreground",
+                ok ? "text-success" : "text-muted-foreground",
               )}
             >
               {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}

@@ -160,6 +160,7 @@ function AdminUsers() {
           )}
           {filtered.map((p) => {
             const f = fundis[p.id];
+            const fundiMeta = f ? SERVICE_META[f.service] : null;
             const isSelf = p.id === user?.id;
             const busy = busyId === p.id;
             return (
@@ -190,9 +191,10 @@ function AdminUsers() {
                         Suspended
                       </Badge>
                     )}
-                    {f && (
-                      <span className="text-xs text-muted-foreground">
-                        {SERVICE_META[f.service]?.icon} {SERVICE_META[f.service]?.label}
+                    {fundiMeta && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <fundiMeta.Icon className="h-3 w-3" />
+                        {fundiMeta.label}
                       </span>
                     )}
                   </div>
@@ -201,7 +203,7 @@ function AdminUsers() {
                   </div>
                   {f && (
                     <div className="text-xs text-muted-foreground mt-0.5 sm:hidden">
-                      <Star className="inline h-3 w-3 fill-amber-400 text-amber-400 -mt-0.5" />{" "}
+                      <Star className="inline h-3 w-3 fill-accent text-accent -mt-0.5" />{" "}
                       {Number(f.rating).toFixed(1)} · {f.total_jobs} jobs ·{" "}
                       {formatTsh(f.hourly_rate)}/hr
                     </div>
@@ -210,13 +212,13 @@ function AdminUsers() {
                 {f && (
                   <div className="text-right shrink-0 hidden sm:block">
                     <div className="flex items-center gap-1 text-sm justify-end">
-                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      <Star className="h-3.5 w-3.5 fill-accent text-accent" />
                       {Number(f.rating).toFixed(1)}
                       <span className="text-muted-foreground">· {f.total_jobs} jobs</span>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {formatTsh(f.hourly_rate)}/hr ·{" "}
-                      <span className={f.is_available ? "text-green-600" : "text-muted-foreground"}>
+                      <span className={f.is_available ? "text-success" : "text-muted-foreground"}>
                         {f.is_available ? "Online" : "Offline"}
                       </span>
                     </div>
@@ -243,7 +245,7 @@ function AdminUsers() {
                     <Button
                       size="sm"
                       variant={p.is_suspended ? "outline" : "ghost"}
-                      className={p.is_suspended ? "" : "text-rose-600"}
+                      className={p.is_suspended ? "" : "text-destructive"}
                       disabled={busy}
                       onClick={() => toggleSuspended(p)}
                     >

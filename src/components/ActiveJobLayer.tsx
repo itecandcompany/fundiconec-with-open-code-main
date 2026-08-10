@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Marker, Polyline, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { fetchRoute, SERVICE_META, type RouteResult, type ServiceKey } from "@/lib/geo";
+import { servicePin } from "@/lib/mapIcons";
 import { Button } from "@/components/ui/button";
+import CancelJobDialog from "@/components/CancelJobDialog";
 import { Phone, Navigation2, X, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { toUserMessage } from "@/lib/errorMessages";
 
 type JobStatus =
   | "searching"
+  | "quoting"
   | "accepted"
   | "on_the_way"
   | "arrived"
@@ -31,6 +35,7 @@ export type ActiveJob = {
 
 const STATUS_LABEL: Record<JobStatus, string> = {
   searching: "Searching for fundi…",
+  quoting: "Reviewing quotes…",
   accepted: "Fundi accepted — preparing",
   on_the_way: "Fundi is on the way",
   arrived: "Fundi has arrived",
@@ -38,15 +43,6 @@ const STATUS_LABEL: Record<JobStatus, string> = {
   completed: "Completed",
   cancelled: "Cancelled",
 };
-
-function fundiPin(color: string, icon: string) {
-  return L.divIcon({
-    className: "",
-    html: `<div style="background:${color};color:white;border:2px solid white;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 6px 16px rgba(0,0,0,.35)">${icon}</div>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-  });
-}
 
 function FitBoundsOnce({
   a,
@@ -85,6 +81,9 @@ export default function ActiveJobLayer({
   onClose: () => void;
 }) {
   const [route, setRoute] = useState<RouteResult | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const { user } = useAuth();
   const meta = SERVICE_META[job.service];
 
   const fundiLat = job.fundi_lat;
@@ -122,9 +121,27 @@ export default function ActiveJobLayer({
     }
   }, [job.status, reverseTrack, onReverseTrackChange]);
 
-  const cancel = async () => {
-    await supabase.from("jobs").update({ status: "cancelled" }).eq("id", job.id);
-    onClose();
+  const submitCancel = async (reason: string) => {
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from("jobs")
+        .update({
+          status: "cancelled",
+          cancellation_reason: reason || "Cancelled by client",
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: user?.id ?? null,
+        })
+        .eq("id", job.id);
+      if (error) {
+        toast.error(toUserMessage(error));
+        return;
+      }
+      onClose();
+    } finally {
+      setCancelling(false);
+      setCancelOpen(false);
+    }
   };
 
   const showRoute =
@@ -139,7 +156,7 @@ export default function ActiveJobLayer({
   return (
     <>
       {fundiPos && (
-        <Marker position={fundiPos} icon={fundiPin(meta.color, meta.icon)}>
+        <Marker position={fundiPos} icon={servicePin(job.service, 40)}>
           <Popup>{fundiName}</Popup>
         </Marker>
       )}
@@ -162,19 +179,24 @@ export default function ActiveJobLayer({
         <div className="bg-background/95 backdrop-blur rounded-2xl shadow-elegant p-3 border pointer-events-auto">
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-full grid place-items-center text-lg shrink-0"
+              className="w-10 h-10 rounded-full grid place-items-center shrink-0"
               style={{ background: meta.color, color: "white" }}
             >
-              {meta.icon}
+              <meta.Icon className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold leading-tight truncate">{fundiName}</div>
               <div className="text-xs text-muted-foreground">{STATUS_LABEL[job.status]}</div>
             </div>
             {job.status === "completed" ? (
-              <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+              <CheckCircle2 className="h-6 w-6 text-success" />
             ) : (
-              <Button size="icon" variant="ghost" onClick={cancel} aria-label="Cancel">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setCancelOpen(true)}
+                aria-label="Cancel request"
+              >
                 <X className="h-4 w-4" />
               </Button>
             )}
@@ -222,6 +244,13 @@ export default function ActiveJobLayer({
           )}
         </div>
       </div>
+      <CancelJobDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        onSubmit={submitCancel}
+        busy={cancelling}
+        who="the fundi"
+      />
     </>
   );
 }

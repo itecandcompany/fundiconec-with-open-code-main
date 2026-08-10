@@ -9,20 +9,13 @@ import { toast } from "sonner";
 import { MapPin, X } from "lucide-react";
 import { toUserMessage } from "@/lib/errorMessages";
 import JobDetailsDrawer, { type JobDetailsRow } from "@/components/admin/JobDetailsDrawer";
+import CancelJobDialog from "@/components/CancelJobDialog";
+import { JOB_STATUSES, STATUS_COLORS, type JobStatus } from "@/lib/jobStatus";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/admin/jobs")({ component: AdminJobs });
 
-const STATUSES = [
-  "searching",
-  "quoting",
-  "accepted",
-  "on_the_way",
-  "arrived",
-  "in_progress",
-  "completed",
-  "cancelled",
-] as const;
-type JobStatus = (typeof STATUSES)[number];
+const STATUSES = JOB_STATUSES;
 
 type Job = {
   id: string;
@@ -45,23 +38,19 @@ type Job = {
   cancellation_reason: string | null;
 };
 
-const STATUS_COLORS: Record<JobStatus, string> = {
-  searching: "bg-blue-100 text-blue-700",
-  quoting: "bg-violet-100 text-violet-700",
-  accepted: "bg-amber-100 text-amber-700",
-  on_the_way: "bg-orange-100 text-orange-700",
-  arrived: "bg-yellow-100 text-yellow-800",
-  in_progress: "bg-indigo-100 text-indigo-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-rose-100 text-rose-700",
-};
-
 function AdminJobs() {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"active" | "all" | JobStatus>("active");
-  const [selected, setSelected] = useState<JobDetailsRow | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  // Derived from the live `jobs` array (not a frozen snapshot) so the drawer
+  // reflects realtime updates while it's open — see openDetails below.
+  const selected = (jobs.find((j) => j.id === selectedId) as unknown as JobDetailsRow) ?? null;
 
   const load = async () => {
     const { data } = await supabase
@@ -100,23 +89,26 @@ function AdminJobs() {
     return jobs.filter((j) => j.status === filter);
   }, [jobs, filter]);
 
-  const forceCancel = async (id: string) => {
-    const reason = prompt("Reason for force-cancelling this job?")?.trim();
-    if (!reason) return;
+  const forceCancel = async (reason: string) => {
+    if (!cancelTarget) return;
+    setCancelling(true);
     const { error } = await supabase
       .from("jobs")
       .update({
         status: "cancelled",
         cancellation_reason: `[admin] ${reason}`,
         cancelled_at: new Date().toISOString(),
+        cancelled_by: user?.id ?? null,
       })
-      .eq("id", id);
+      .eq("id", cancelTarget);
+    setCancelling(false);
+    setCancelTarget(null);
     if (error) toast.error(toUserMessage(error));
     else toast.success("Job cancelled");
   };
 
   const openDetails = (j: Job) => {
-    setSelected(j as unknown as JobDetailsRow);
+    setSelectedId(j.id);
     setOpen(true);
   };
 
@@ -150,65 +142,80 @@ function AdminJobs() {
           {filtered.length === 0 && (
             <div className="p-6 text-sm text-muted-foreground text-center">No jobs.</div>
           )}
-          {filtered.map((j) => (
-            <div
-              key={j.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openDetails(j)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") openDetails(j);
-              }}
-              className="p-3 md:p-4 hover:bg-muted/30 cursor-pointer focus:outline-none focus:bg-muted/30"
-            >
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">{SERVICE_META[j.service]?.icon}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="font-medium text-sm">
-                      {j.problem_title ?? SERVICE_META[j.service]?.label}
+          {filtered.map((j) => {
+            const meta = SERVICE_META[j.service];
+            return (
+              <div
+                key={j.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openDetails(j)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") openDetails(j);
+                }}
+                className="p-3 md:p-4 hover:bg-muted/30 cursor-pointer focus:outline-none focus:bg-muted/30"
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="h-9 w-9 shrink-0 rounded-lg grid place-items-center"
+                    style={{ background: meta?.color + "1a", color: meta?.color }}
+                  >
+                    {meta && <meta.Icon className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="font-medium text-sm">{j.problem_title ?? meta?.label}</div>
+                      <Badge
+                        className={`text-[10px] ${STATUS_COLORS[j.status]} border-transparent`}
+                      >
+                        {j.status.replace(/_/g, " ")}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {formatTsh(Number(j.agreed_price ?? j.price))}
+                      </span>
                     </div>
-                    <Badge className={`text-[10px] ${STATUS_COLORS[j.status]} border-transparent`}>
-                      {j.status.replace(/_/g, " ")}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {formatTsh(Number(j.agreed_price ?? j.price))}
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Client: {profiles[j.client_id] ?? "—"} · Fundi:{" "}
-                    {j.fundi_id ? (profiles[j.fundi_id] ?? "—") : "unassigned"}
-                  </div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <MapPin className="h-3 w-3" />
-                    {j.client_address ?? "Pinned location"} ·{" "}
-                    {new Date(j.created_at).toLocaleString()}
-                  </div>
-                  {j.cancellation_reason && (
-                    <div className="text-xs text-rose-600 mt-1">
-                      Cancelled: {j.cancellation_reason}
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Client: {profiles[j.client_id] ?? "—"} · Fundi:{" "}
+                      {j.fundi_id ? (profiles[j.fundi_id] ?? "—") : "unassigned"}
                     </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-3 w-3" />
+                      {j.client_address ?? "Pinned location"} ·{" "}
+                      {new Date(j.created_at).toLocaleString()}
+                    </div>
+                    {j.cancellation_reason && (
+                      <div className="text-xs text-destructive mt-1">
+                        Cancelled: {j.cancellation_reason}
+                      </div>
+                    )}
+                  </div>
+                  {!(j.status === "completed" || j.status === "cancelled") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCancelTarget(j.id);
+                      }}
+                    >
+                      <X className="h-4 w-4" /> Cancel
+                    </Button>
                   )}
                 </div>
-                {!(j.status === "completed" || j.status === "cancelled") && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-rose-600 shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      forceCancel(j.id);
-                    }}
-                  >
-                    <X className="h-4 w-4" /> Cancel
-                  </Button>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
       <JobDetailsDrawer job={selected} open={open} onOpenChange={setOpen} />
+      <CancelJobDialog
+        open={!!cancelTarget}
+        onOpenChange={(o) => !o && setCancelTarget(null)}
+        onSubmit={forceCancel}
+        busy={cancelling}
+        who="the client and fundi"
+      />
     </div>
   );
 }

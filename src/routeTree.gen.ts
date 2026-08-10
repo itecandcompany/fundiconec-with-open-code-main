@@ -17,9 +17,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as FundiSetupRouteImport } from './routes/fundi.setup'
-import { Route as AppServiceRouteImport } from './routes/app.service'
-import { Route as AppFindRouteImport } from './routes/app.find'
-import { Route as AppDescribeRouteImport } from './routes/app.describe'
+import { Route as AppJobsRouteImport } from './routes/app.jobs'
+import { Route as AppHelpRouteImport } from './routes/app.help'
+import { Route as AppAccountRouteImport } from './routes/app.account'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminJobsRouteImport } from './routes/admin.jobs'
 import { Route as AdminCatalogRouteImport } from './routes/admin.catalog'
@@ -64,19 +64,19 @@ const FundiSetupRoute = FundiSetupRouteImport.update({
   path: '/fundi/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppServiceRoute = AppServiceRouteImport.update({
-  id: '/service',
-  path: '/service',
+const AppJobsRoute = AppJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => AppRoute,
 } as any)
-const AppFindRoute = AppFindRouteImport.update({
-  id: '/find',
-  path: '/find',
+const AppHelpRoute = AppHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDescribeRoute = AppDescribeRouteImport.update({
-  id: '/describe',
-  path: '/describe',
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -104,9 +104,9 @@ export interface FileRoutesByFullPath {
   '/admin/catalog': typeof AdminCatalogRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/app/describe': typeof AppDescribeRoute
-  '/app/find': typeof AppFindRoute
-  '/app/service': typeof AppServiceRoute
+  '/app/account': typeof AppAccountRoute
+  '/app/help': typeof AppHelpRoute
+  '/app/jobs': typeof AppJobsRoute
   '/fundi/setup': typeof FundiSetupRoute
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
@@ -118,9 +118,9 @@ export interface FileRoutesByTo {
   '/admin/catalog': typeof AdminCatalogRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/app/describe': typeof AppDescribeRoute
-  '/app/find': typeof AppFindRoute
-  '/app/service': typeof AppServiceRoute
+  '/app/account': typeof AppAccountRoute
+  '/app/help': typeof AppHelpRoute
+  '/app/jobs': typeof AppJobsRoute
   '/fundi/setup': typeof FundiSetupRoute
   '/admin': typeof AdminIndexRoute
   '/app': typeof AppIndexRoute
@@ -135,9 +135,9 @@ export interface FileRoutesById {
   '/admin/catalog': typeof AdminCatalogRoute
   '/admin/jobs': typeof AdminJobsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/app/describe': typeof AppDescribeRoute
-  '/app/find': typeof AppFindRoute
-  '/app/service': typeof AppServiceRoute
+  '/app/account': typeof AppAccountRoute
+  '/app/help': typeof AppHelpRoute
+  '/app/jobs': typeof AppJobsRoute
   '/fundi/setup': typeof FundiSetupRoute
   '/admin/': typeof AdminIndexRoute
   '/app/': typeof AppIndexRoute
@@ -153,9 +153,9 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/jobs'
     | '/admin/users'
-    | '/app/describe'
-    | '/app/find'
-    | '/app/service'
+    | '/app/account'
+    | '/app/help'
+    | '/app/jobs'
     | '/fundi/setup'
     | '/admin/'
     | '/app/'
@@ -167,9 +167,9 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/jobs'
     | '/admin/users'
-    | '/app/describe'
-    | '/app/find'
-    | '/app/service'
+    | '/app/account'
+    | '/app/help'
+    | '/app/jobs'
     | '/fundi/setup'
     | '/admin'
     | '/app'
@@ -183,9 +183,9 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/jobs'
     | '/admin/users'
-    | '/app/describe'
-    | '/app/find'
-    | '/app/service'
+    | '/app/account'
+    | '/app/help'
+    | '/app/jobs'
     | '/fundi/setup'
     | '/admin/'
     | '/app/'
@@ -258,25 +258,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FundiSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/service': {
-      id: '/app/service'
-      path: '/service'
-      fullPath: '/app/service'
-      preLoaderRoute: typeof AppServiceRouteImport
+    '/app/jobs': {
+      id: '/app/jobs'
+      path: '/jobs'
+      fullPath: '/app/jobs'
+      preLoaderRoute: typeof AppJobsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/find': {
-      id: '/app/find'
-      path: '/find'
-      fullPath: '/app/find'
-      preLoaderRoute: typeof AppFindRouteImport
+    '/app/help': {
+      id: '/app/help'
+      path: '/help'
+      fullPath: '/app/help'
+      preLoaderRoute: typeof AppHelpRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/describe': {
-      id: '/app/describe'
-      path: '/describe'
-      fullPath: '/app/describe'
-      preLoaderRoute: typeof AppDescribeRouteImport
+    '/app/account': {
+      id: '/app/account'
+      path: '/account'
+      fullPath: '/app/account'
+      preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
     '/admin/users': {
@@ -320,16 +320,16 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AppRouteChildren {
-  AppDescribeRoute: typeof AppDescribeRoute
-  AppFindRoute: typeof AppFindRoute
-  AppServiceRoute: typeof AppServiceRoute
+  AppAccountRoute: typeof AppAccountRoute
+  AppHelpRoute: typeof AppHelpRoute
+  AppJobsRoute: typeof AppJobsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppDescribeRoute: AppDescribeRoute,
-  AppFindRoute: AppFindRoute,
-  AppServiceRoute: AppServiceRoute,
+  AppAccountRoute: AppAccountRoute,
+  AppHelpRoute: AppHelpRoute,
+  AppJobsRoute: AppJobsRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

@@ -76,7 +76,8 @@ function Landing() {
   }, []);
 
   const quickActions = (Object.keys(SERVICE_META) as ServiceKey[]).map((k) => ({
-    icon: SERVICE_META[k].icon,
+    Icon: SERVICE_META[k].Icon,
+    color: SERVICE_META[k].color,
     label: SERVICE_META[k].label,
     count: counts[k] ?? 0,
   }));
@@ -131,8 +132,11 @@ function Landing() {
             {quickActions.map((item) => (
               <Link key={item.label} to="/auth" search={{ role: "client" }}>
                 <Card className="rounded-3xl border-0 bg-card p-4 shadow-card transition-smooth active:scale-[0.98]">
-                  <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-secondary text-2xl">
-                    {item.icon}
+                  <div
+                    className="mb-4 grid h-12 w-12 place-items-center rounded-2xl"
+                    style={{ background: item.color + "1a", color: item.color }}
+                  >
+                    <item.Icon className="h-6 w-6" />
                   </div>
                   <p className="font-semibold">{item.label}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -185,23 +189,31 @@ function Landing() {
                     <p className="text-xs text-muted-foreground">Check back in a few minutes.</p>
                   </div>
                 ) : (
-                  liveFundis.map((f) => (
-                    <div
-                      key={f.full_name + f.service}
-                      className="flex items-center justify-between rounded-2xl bg-secondary/60 px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {SERVICE_META[f.service].icon} {f.full_name} ·{" "}
-                          {SERVICE_META[f.service].label}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Verified · {f.km.toFixed(1)} km away
-                        </p>
+                  liveFundis.map((f) => {
+                    const meta = SERVICE_META[f.service];
+                    return (
+                      <div
+                        key={f.full_name + f.service}
+                        className="flex items-center gap-3 rounded-2xl bg-secondary/60 px-4 py-3"
+                      >
+                        <div
+                          className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
+                          style={{ background: meta.color + "1a", color: meta.color }}
+                        >
+                          <meta.Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {f.full_name} · {meta.label}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Verified · {f.km.toFixed(1)} km away
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </Card>

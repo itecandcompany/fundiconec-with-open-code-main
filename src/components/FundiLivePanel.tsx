@@ -21,7 +21,14 @@ import { toUserMessage } from "@/lib/errorMessages";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import CancelJobDialog from "@/components/CancelJobDialog";
 import JobReceiptDialog from "@/components/JobReceiptDialog";
-import { SERVICE_META, ARRIVAL_RADIUS_M, haversineKm, formatTsh, type ServiceKey } from "@/lib/geo";
+import {
+  SERVICE_META,
+  ARRIVAL_RADIUS_M,
+  DEFAULT_CENTER,
+  haversineKm,
+  formatTsh,
+  type ServiceKey,
+} from "@/lib/geo";
 import { sendBrowserNotification, ensureNotificationPermission } from "@/lib/push";
 import JobChat from "./chat/JobChat";
 import ProofOfWorkDialog, { type ProofMode, type ProofResult } from "./fundi/ProofOfWorkDialog";
@@ -54,6 +61,7 @@ type Job = {
   problem_title: string | null;
   problem_description: string | null;
   job_photos: string[];
+  urgency?: string;
   before_photos?: string[];
   after_photos?: string[];
   started_at?: string | null;
@@ -164,16 +172,42 @@ export default function FundiLivePanel() {
     loadEarnings();
   }, [loadEarnings]);
 
-  // GPS watch
+  // GPS watch. A browser permission prompt left unanswered never fires
+  // either geolocation callback, so the `timeout` option alone isn't
+  // reliable — fall back on our own clock too. Without this, a fundi whose
+  // location never resolves stays permanently invisible to clients (the
+  // client map only shows fundis with a non-null current_lat/current_lng).
   useEffect(() => {
     if (!available && !activeId) return;
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) return;
+    let settled = false;
+    const fallback = () => {
+      if (settled) return;
+      settled = true;
+      console.warn("geo unavailable; using default location");
+      setPos([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]);
+    };
+
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      fallback();
+      return;
+    }
+
+    const hardTimeout = window.setTimeout(fallback, 8000);
     watchRef.current = navigator.geolocation.watchPosition(
-      (p) => setPos([p.coords.latitude, p.coords.longitude]),
-      (err) => console.warn("geo err", err),
+      (p) => {
+        settled = true;
+        window.clearTimeout(hardTimeout);
+        setPos([p.coords.latitude, p.coords.longitude]);
+      },
+      (err) => {
+        console.warn("geo err", err);
+        window.clearTimeout(hardTimeout);
+        fallback();
+      },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
     return () => {
+      window.clearTimeout(hardTimeout);
       if (watchRef.current !== null) navigator.geolocation.clearWatch(watchRef.current);
     };
   }, [available, activeId]);
@@ -392,8 +426,13 @@ export default function FundiLivePanel() {
 
   const toggleAvailable = async (v: boolean) => {
     if (!user) return;
+    const prev = available;
     setAvailable(v);
-    await supabase.from("fundis").update({ is_available: v }).eq("id", user.id);
+    const { error } = await supabase.from("fundis").update({ is_available: v }).eq("id", user.id);
+    if (error) {
+      setAvailable(prev);
+      toast.error(toUserMessage(error));
+    }
   };
 
   const sendQuote = async () => {
@@ -489,7 +528,7 @@ export default function FundiLivePanel() {
     if (!active) return;
     setCancelling(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from("jobs")
         .update({
           status: "cancelled",
@@ -498,6 +537,10 @@ export default function FundiLivePanel() {
           cancelled_by: user?.id ?? null,
         })
         .eq("id", active.id);
+      if (error) {
+        toast.error(toUserMessage(error));
+        return;
+      }
       setActive(null);
       toast.message("Job cancelled");
     } finally {
@@ -510,6 +553,9 @@ export default function FundiLivePanel() {
     setChatJobId(jobId);
     setChatOpen(true);
   };
+
+  const activeMeta = active ? SERVICE_META[active.service] : null;
+  const ActiveIcon = activeMeta?.Icon;
 
   return (
     <div className="space-y-4">
@@ -591,15 +637,22 @@ export default function FundiLivePanel() {
       {/* Active job */}
       {active ? (
         <Card className="p-4 space-y-3 border-2 border-primary/30">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase text-muted-foreground">Active job</div>
-              <div className="font-display font-bold leading-tight truncate">
-                {SERVICE_META[active.service].icon}{" "}
-                {active.problem_title || SERVICE_META[active.service].label}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
+                style={{ background: activeMeta?.color + "22", color: activeMeta?.color }}
+              >
+                {ActiveIcon && <ActiveIcon className="h-5 w-5" />}
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase text-muted-foreground">Active job</div>
+                <div className="font-display font-bold leading-tight truncate">
+                  {active.problem_title || SERVICE_META[active.service].label}
+                </div>
               </div>
             </div>
-            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary capitalize whitespace-nowrap">
+            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary capitalize whitespace-nowrap shrink-0">
               {active.status.replace("_", " ")}
             </span>
           </div>
@@ -687,8 +740,15 @@ export default function FundiLivePanel() {
                   <div key={j.id} className="border rounded-2xl p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-semibold text-sm leading-tight">
-                          {j.problem_title || SERVICE_META[j.service].label}
+                        <div className="flex items-center gap-1.5">
+                          <div className="font-semibold text-sm leading-tight truncate">
+                            {j.problem_title || SERVICE_META[j.service].label}
+                          </div>
+                          {j.urgency === "now" && (
+                            <span className="shrink-0 rounded-full bg-warning/15 text-warning-foreground px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                              Now
+                            </span>
+                          )}
                         </div>
                         {j.problem_description && (
                           <div className="text-xs text-muted-foreground line-clamp-2">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { SERVICE_META, type ServiceKey } from "@/lib/geo";
+import { servicePin, destinationPin } from "@/lib/mapIcons";
 
 function meIcon() {
   return L.divIcon({
@@ -9,15 +10,6 @@ function meIcon() {
     html: `<div style="position:relative"><div style="position:absolute;inset:-12px;background:#22c55e;opacity:.25;border-radius:50%;animation:pulse 2s infinite"></div><div style="background:#16a34a;border:3px solid white;border-radius:50%;width:18px;height:18px;box-shadow:0 2px 8px rgba(0,0,0,.3);position:relative"></div></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9],
-  });
-}
-
-function clientIcon(color: string, label: string) {
-  return L.divIcon({
-    className: "",
-    html: `<div style="background:${color};color:white;border:2px solid white;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.25)">${label}</div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
   });
 }
 
@@ -94,7 +86,7 @@ export default function FundiMap({
           <>
             <Marker
               position={[active.client_lat, active.client_lng]}
-              icon={clientIcon(SERVICE_META[active.service].color, "📍")}
+              icon={destinationPin(SERVICE_META[active.service].color)}
             >
               <Popup>{active.problem_title || "Client"}</Popup>
             </Marker>
@@ -117,7 +109,7 @@ export default function FundiMap({
             <Marker
               key={r.id}
               position={[r.client_lat, r.client_lng]}
-              icon={clientIcon(SERVICE_META[r.service].color, SERVICE_META[r.service].icon)}
+              icon={servicePin(r.service, 34)}
             >
               <Popup>{r.problem_title || SERVICE_META[r.service].label}</Popup>
             </Marker>

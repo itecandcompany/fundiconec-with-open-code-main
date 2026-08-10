@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SERVICE_META, formatTsh, haversineKm, etaMinutes, type ServiceKey } from "@/lib/geo";
 import { uploadJobPhotos } from "@/lib/jobPhotos";
 import RadarPulse from "./RadarPulse";
@@ -13,6 +14,7 @@ import {
   ChevronUp,
   ChevronDown,
   Loader2,
+  MapPin,
   MessageCircle,
   Phone,
   Star,
@@ -116,9 +118,11 @@ export default function BookingSheet({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState<string>("");
+  const [urgency, setUrgency] = useState<"now" | "today" | "schedule">("now");
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [detailQuote, setDetailQuote] = useState<Quote | null>(null);
   const [fundiProfiles, setFundiProfiles] = useState<Record<string, FundiProfile>>({});
   const [activeFundi, setActiveFundi] = useState<FundiProfile | null>(null);
   const [rating, setRating] = useState(0);
@@ -250,8 +254,11 @@ export default function BookingSheet({
     const startingPrice = numericBudget > 0 ? numericBudget : suggested;
     setSubmitting(true);
     let photoUrls: string[] = [];
+    let failedPhotoCount = 0;
     if (files.length) {
-      photoUrls = await uploadJobPhotos(user.id, files);
+      const uploaded = await uploadJobPhotos(user.id, files);
+      photoUrls = uploaded.paths;
+      failedPhotoCount = uploaded.failedCount;
     }
     const commission = Math.round(startingPrice * 0.1);
     const { error } = await supabase.from("jobs").insert({
@@ -265,6 +272,7 @@ export default function BookingSheet({
       problem_title: finalTitle,
       problem_description: description.trim() || null,
       job_photos: photoUrls,
+      urgency,
     });
     setSubmitting(false);
     if (error) {
@@ -272,15 +280,21 @@ export default function BookingSheet({
       return;
     }
     toast.success("Request sent — fundis are sending quotes");
+    if (failedPhotoCount > 0) {
+      toast.error(
+        `${failedPhotoCount} photo${failedPhotoCount > 1 ? "s" : ""} failed to upload — job was still submitted.`,
+      );
+    }
     setFiles([]);
     setDescription("");
+    setUrgency("now");
   };
 
   const cancel = async (reason: string) => {
     if (!activeJob) return;
     setCancelling(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from("jobs")
         .update({
           status: "cancelled",
@@ -289,6 +303,10 @@ export default function BookingSheet({
           cancelled_by: user?.id ?? null,
         })
         .eq("id", activeJob.id);
+      if (error) {
+        toast.error(toUserMessage(error));
+        return;
+      }
       onClose();
     } finally {
       setCancelling(false);
@@ -311,25 +329,37 @@ export default function BookingSheet({
       toast.error(toUserMessage(error));
       return;
     }
-    await supabase.from("job_quotes").update({ status: "accepted" }).eq("id", q.id);
-    await supabase
-      .from("job_quotes")
-      .update({ status: "declined" })
-      .eq("job_id", activeJob.id)
-      .neq("id", q.id);
+    const [{ error: acceptErr }, { error: declineErr }] = await Promise.all([
+      supabase.from("job_quotes").update({ status: "accepted" }).eq("id", q.id),
+      supabase
+        .from("job_quotes")
+        .update({ status: "declined" })
+        .eq("job_id", activeJob.id)
+        .neq("id", q.id),
+    ]);
     onPickQuoteFundi?.(q.fundi_id);
     toast.success("Fundi confirmed — they're on the way");
+    // The job itself is already accepted at this point (checked above) —
+    // these are secondary bookkeeping updates, so a failure here shouldn't
+    // undo the acceptance, just flag that the quote records may be stale.
+    if (acceptErr || declineErr) {
+      toast.error("Quote records may be out of sync — the job itself was accepted fine.");
+    }
   };
 
   const submitRating = async () => {
     if (!activeJob || !user || !activeJob.fundi_id || rating === 0) return;
-    await supabase.from("ratings").insert({
+    const { error } = await supabase.from("ratings").insert({
       job_id: activeJob.id,
       client_id: user.id,
       fundi_id: activeJob.fundi_id,
       stars: rating,
       review: review.trim() || null,
     });
+    if (error) {
+      toast.error(toUserMessage(error));
+      return;
+    }
     toast.success("Thanks for the feedback");
     setReceiptOpen(true);
   };
@@ -347,8 +377,8 @@ export default function BookingSheet({
           </p>
         </div>
 
-        {/* Service chips */}
-        <div className="px-4 mt-4 flex gap-2 overflow-x-auto scrollbar-none">
+        {/* Service tiles */}
+        <div className="px-4 mt-4 flex gap-2.5 overflow-x-auto scrollbar-none">
           {(Object.keys(SERVICE_META) as ServiceKey[]).map((k) => {
             const s = SERVICE_META[k];
             const active = service === k;
@@ -356,14 +386,19 @@ export default function BookingSheet({
               <button
                 key={k}
                 onClick={() => setService(k)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium border transition-colors ${
+                className={`shrink-0 w-26 flex flex-col items-center gap-2 rounded-2xl border px-3 py-4 text-center transition-colors ${
                   active
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card border-border hover:border-primary"
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-primary"
                 }`}
               >
-                <span className="mr-1">{s.icon}</span>
-                {s.label}
+                <div className="h-12 w-12 rounded-full bg-primary/10 text-primary grid place-items-center">
+                  <s.Icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="text-[13px] font-medium leading-tight">{s.sw}</div>
+                  <div className="text-[11px] text-muted-foreground leading-tight">{s.label}</div>
+                </div>
               </button>
             );
           })}
@@ -420,25 +455,56 @@ export default function BookingSheet({
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
               />
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  placeholder={`Budget (TSh) — suggested ${
-                    pickedTemplate?.suggested_price ?? SERVICE_META[service].price
-                  }`}
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="shrink-0"
-                >
-                  <Camera className="h-4 w-4" />
-                  {files.length ? `${files.length}` : "Photos"}
-                </Button>
+              <Input
+                type="number"
+                inputMode="numeric"
+                placeholder={`Budget (TSh) — suggested ${
+                  pickedTemplate?.suggested_price ?? SERVICE_META[service].price
+                }`}
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+              />
+            </div>
+
+            {/* Photos */}
+            <div className="space-y-2">
+              <div className="flex items-end justify-between">
+                <span className="text-sm font-semibold">Photos</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {files.length}/5 added
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Photos help the fundi quote correctly before travelling.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {files.map((f, i) => (
+                  <div key={i} className="relative aspect-square">
+                    <img
+                      alt=""
+                      src={URL.createObjectURL(f)}
+                      className="h-full w-full object-cover rounded-xl border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFiles((arr) => arr.filter((_, idx) => idx !== i))}
+                      aria-label="Remove photo"
+                      className="absolute top-1 right-1 bg-background/90 border rounded-full p-1 shadow-sm"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {files.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="aspect-square rounded-xl border-2 border-dashed grid place-items-center gap-1 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <Camera className="h-5 w-5" />
+                    <span className="text-[11px] font-medium">Add photo</span>
+                  </button>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -448,18 +514,33 @@ export default function BookingSheet({
                   onChange={(e) => onPickFiles(e.target.files)}
                 />
               </div>
-              {files.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto scrollbar-none">
-                  {files.map((f, i) => (
-                    <img
-                      key={i}
-                      alt=""
-                      src={URL.createObjectURL(f)}
-                      className="h-16 w-16 object-cover rounded-lg border"
-                    />
-                  ))}
-                </div>
-              )}
+            </div>
+
+            {/* Urgency */}
+            <div>
+              <div className="text-sm font-semibold mb-2">When do you need it?</div>
+              <div className="flex bg-muted border rounded-xl p-1 gap-1">
+                {(
+                  [
+                    ["now", "Now"],
+                    ["today", "Today"],
+                    ["schedule", "Schedule"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setUrgency(value)}
+                    className={`flex-1 py-2.5 text-center rounded-lg text-[13px] font-medium transition-colors ${
+                      urgency === value
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground/80 hover:bg-background/60"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <Button className="w-full h-12 text-base" onClick={submitRequest} disabled={submitting}>
@@ -492,7 +573,12 @@ export default function BookingSheet({
                 {activeJob.problem_title}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setCancelOpen(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Cancel request"
+              onClick={() => setCancelOpen(true)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -519,7 +605,16 @@ export default function BookingSheet({
                       )
                     : 0;
                 return (
-                  <div key={q.id} className="border rounded-2xl p-3 flex items-center gap-3">
+                  <div
+                    key={q.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDetailQuote(q)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") setDetailQuote(q);
+                    }}
+                    className="w-full text-left border rounded-2xl p-3 flex items-center gap-3 hover:border-primary transition-colors cursor-pointer"
+                  >
                     <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold">
                       {(fp?.full_name ?? "F").charAt(0)}
                     </div>
@@ -528,7 +623,7 @@ export default function BookingSheet({
                         {fp?.full_name ?? "Fundi"}
                       </div>
                       <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                        <Star className="h-3 w-3 fill-accent text-accent" />
                         {(fp?.rating ?? 5).toFixed(1)} · {km.toFixed(1)} km · {etaMinutes(km || 1)}{" "}
                         min
                       </div>
@@ -541,17 +636,28 @@ export default function BookingSheet({
                     <div className="text-right">
                       <div className="font-bold text-base">{formatTsh(q.price)}</div>
                       <div className="flex gap-1 mt-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-2"
-                          onClick={() => onOpenChat(activeJob.id, fp?.full_name ?? "Fundi")}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenChat(activeJob.id, fp?.full_name ?? "Fundi");
+                          }}
+                          className="inline-flex h-7 items-center rounded-md border px-2 text-xs hover:bg-muted"
                         >
                           <MessageCircle className="h-3 w-3" />
-                        </Button>
-                        <Button size="sm" className="h-7 px-2" onClick={() => acceptQuote(q)}>
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            acceptQuote(q);
+                          }}
+                          className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                        >
                           <Check className="h-3 w-3" /> Accept
-                        </Button>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -567,6 +673,21 @@ export default function BookingSheet({
           busy={cancelling}
           who="the fundi"
         />
+        <QuoteDetailsDialog
+          quote={detailQuote}
+          fundi={detailQuote ? fundiProfiles[detailQuote.fundi_id] : undefined}
+          job={activeJob}
+          open={!!detailQuote}
+          onOpenChange={(o) => !o && setDetailQuote(null)}
+          onApprove={(q) => {
+            acceptQuote(q);
+            setDetailQuote(null);
+          }}
+          onChat={(q) => {
+            onOpenChat(activeJob.id, fundiProfiles[q.fundi_id]?.full_name ?? "Fundi");
+            setDetailQuote(null);
+          }}
+        />
       </Shell>
     );
   }
@@ -576,8 +697,8 @@ export default function BookingSheet({
     return (
       <Shell expanded={expanded} setExpanded={setExpanded}>
         <div className="px-4 pb-6 text-center">
-          <div className="mx-auto w-14 h-14 rounded-full bg-success/15 text-success grid place-items-center text-2xl">
-            ✓
+          <div className="mx-auto w-14 h-14 rounded-full bg-success/15 text-success grid place-items-center">
+            <Check className="h-7 w-7" />
           </div>
           <div className="mt-2 font-display font-bold text-xl">Job complete</div>
           <div className="text-sm text-muted-foreground">
@@ -592,7 +713,7 @@ export default function BookingSheet({
                 <button key={n} onClick={() => setRating(n)} aria-label={`${n} star`}>
                   <Star
                     className={`h-7 w-7 ${
-                      n <= rating ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+                      n <= rating ? "fill-accent text-accent" : "text-muted-foreground"
                     }`}
                   />
                 </button>
@@ -635,72 +756,78 @@ export default function BookingSheet({
       : null;
   const km = pos && fundiPos ? haversineKm({ lat: pos[0], lng: pos[1] }, fundiPos) : 0;
 
+  const jobMeta = SERVICE_META[activeJob.service];
+
   return (
     <Shell expanded={expanded} setExpanded={setExpanded}>
-      <div className="px-4 pb-6">
-        <div className="text-xs uppercase text-muted-foreground">
-          {STAGE_LABEL[activeJob.status]}
+      <div className="px-4 pb-6 space-y-5">
+        {/* ETA header */}
+        <div className="text-center">
+          <div className="font-display text-3xl font-bold text-primary leading-none">
+            {etaMinutes(km || 1)} min
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">{STAGE_LABEL[activeJob.status]}</p>
         </div>
-        <div className="flex items-center gap-3 mt-1">
-          <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground grid place-items-center text-lg font-semibold">
-            {(activeFundi?.full_name ?? "F").charAt(0)}
+
+        {/* Fundi profile card */}
+        <div className="relative overflow-hidden rounded-2xl border bg-muted/40 p-4 flex items-center gap-4">
+          <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-primary/5 pointer-events-none" />
+          <div className="relative shrink-0">
+            <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground grid place-items-center text-xl font-semibold border-2 border-background shadow-sm">
+              {(activeFundi?.full_name ?? "F").charAt(0)}
+            </div>
+            <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-success border-2 border-background" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-semibold leading-tight truncate">
+            <div className="font-display font-bold text-lg leading-tight truncate">
               {activeFundi?.full_name ?? "Fundi"}
             </div>
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-              {(activeFundi?.rating ?? 5).toFixed(1)} · {activeFundi?.total_jobs ?? 0} jobs ·{" "}
-              {SERVICE_META[activeJob.service].label}
+            <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+              <span className="flex items-center gap-0.5 text-accent">
+                <Star className="h-3.5 w-3.5 fill-accent text-accent" />
+                {(activeFundi?.rating ?? 5).toFixed(1)}
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" />
+              {activeFundi?.total_jobs ?? 0} jobs
             </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[10px] uppercase text-muted-foreground">ETA</div>
-            <div className="font-bold">{etaMinutes(km || 1)} min</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-          <div className="bg-muted rounded-xl py-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Distance</div>
-            <div className="font-semibold text-sm">{km.toFixed(1)} km</div>
+        {/* Skill chip */}
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+            <jobMeta.Icon className="h-3.5 w-3.5" />
+            {jobMeta.label}
+          </span>
+        </div>
+
+        {/* Job summary panel */}
+        <div className="rounded-2xl border p-4 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Current job
+              </div>
+              <div className="font-medium truncate">{activeJob.problem_title ?? jobMeta.label}</div>
+            </div>
+            <span className="shrink-0 rounded bg-secondary px-2 py-1 text-[11px] font-semibold text-secondary-foreground">
+              #{activeJob.id.slice(0, 6).toUpperCase()}
+            </span>
           </div>
-          <div className="bg-muted rounded-xl py-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Price</div>
-            <div className="font-semibold text-sm">
+          <div className="h-px bg-border" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">{km.toFixed(1)} km away</span>
+            <span className="ml-auto font-semibold text-foreground">
               {formatTsh(activeJob.agreed_price ?? activeJob.price)}
-            </div>
+            </span>
           </div>
-          <div className="bg-muted rounded-xl py-2">
-            <div className="text-[10px] uppercase text-muted-foreground">Status</div>
-            <div className="font-semibold text-sm capitalize">
-              {activeJob.status.replace("_", " ")}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mt-3">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChat(activeJob.id, activeFundi?.full_name ?? "Fundi")}
-          >
-            <MessageCircle className="h-4 w-4" /> Chat
-          </Button>
-          <Button asChild variant="outline" disabled={!activeFundi?.phone}>
-            <a href={activeFundi?.phone ? `tel:${activeFundi.phone}` : "#"}>
-              <Phone className="h-4 w-4" /> Call
-            </a>
-          </Button>
-          <Button variant="destructive" onClick={() => setCancelOpen(true)}>
-            <X className="h-4 w-4" /> Cancel
-          </Button>
         </div>
 
         {(activeJob.before_photos?.length ||
           activeJob.after_photos?.length ||
           activeJob.started_at) && (
-          <div className="mt-4 rounded-xl border bg-muted/30 p-3 space-y-3">
+          <div className="rounded-xl border bg-muted/30 p-3 space-y-3">
             {activeJob.started_at && <WorkTimer startedAt={activeJob.started_at} />}
             {activeJob.before_photos && activeJob.before_photos.length > 0 && (
               <ProofRow label="Before" urls={activeJob.before_photos} />
@@ -710,6 +837,28 @@ export default function BookingSheet({
             )}
           </div>
         )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            className="flex-1 h-13 text-base"
+            onClick={() => onOpenChat(activeJob.id, activeFundi?.full_name ?? "Fundi")}
+          >
+            <MessageCircle className="h-4 w-4" /> Chat
+          </Button>
+          <Button asChild className="flex-1 h-13 text-base" disabled={!activeFundi?.phone}>
+            <a href={activeFundi?.phone ? `tel:${activeFundi.phone}` : "#"}>
+              <Phone className="h-4 w-4" /> Call
+            </a>
+          </Button>
+        </div>
+        <button
+          onClick={() => setCancelOpen(true)}
+          className="w-full text-center text-sm font-medium text-destructive py-1 active:opacity-70 transition-opacity"
+        >
+          Cancel request
+        </button>
       </div>
       <CancelJobDialog
         open={cancelOpen}
@@ -719,6 +868,95 @@ export default function BookingSheet({
         who="the fundi"
       />
     </Shell>
+  );
+}
+
+function QuoteDetailsDialog({
+  quote,
+  fundi,
+  job,
+  open,
+  onOpenChange,
+  onApprove,
+  onChat,
+}: {
+  quote: Quote | null;
+  fundi: FundiProfile | undefined;
+  job: ActiveJob;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onApprove: (q: Quote) => void;
+  onChat: (q: Quote) => void;
+}) {
+  if (!quote) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Quote details</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="rounded-2xl border overflow-hidden">
+            <div className="p-4 border-b bg-muted/40 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground grid place-items-center font-semibold">
+                {(fundi?.full_name ?? "F").charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <div className="font-semibold text-sm truncate">{fundi?.full_name ?? "Fundi"}</div>
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-accent text-accent" />
+                  {(fundi?.rating ?? 5).toFixed(1)} · {fundi?.total_jobs ?? 0} jobs
+                </div>
+              </div>
+            </div>
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground">Total</div>
+                <div className="text-[11px] text-muted-foreground">For: {job.problem_title}</div>
+              </div>
+              <div className="font-display text-2xl font-bold text-primary">
+                {formatTsh(quote.price)}
+              </div>
+            </div>
+            {quote.note && (
+              <div className="px-4 pb-4">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Fundi's note
+                </div>
+                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                  <p className="text-sm italic">"{quote.note}"</p>
+                </div>
+              </div>
+            )}
+            {job.job_photos?.length > 0 && (
+              <div className="px-4 pb-4">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                  Your job photos
+                </div>
+                <div className="flex gap-2 overflow-x-auto scrollbar-none">
+                  {job.job_photos.map((u, i) => (
+                    <SignedImage
+                      key={i}
+                      src={u}
+                      alt=""
+                      className="h-16 w-16 object-cover rounded-lg border shrink-0"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button className="w-full h-12" onClick={() => onApprove(quote)}>
+              Approve quote
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => onChat(quote)}>
+              <MessageCircle className="h-4 w-4" /> Message fundi
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

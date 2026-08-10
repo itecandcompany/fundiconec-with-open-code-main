@@ -16,6 +16,7 @@ import type { Database } from "@/integrations/supabase/types";
 import SignedImage, { useSignedJobPhotoUrl } from "@/components/SignedImage";
 import { toast } from "sonner";
 import { toUserMessage } from "@/lib/errorMessages";
+import { STATUS_COLORS, STATUS_TONE, type JobStatus } from "@/lib/jobStatus";
 import {
   Search,
   MessageSquareQuote,
@@ -33,16 +34,6 @@ import {
   X as XIcon,
   UserCog,
 } from "lucide-react";
-
-type JobStatus =
-  | "searching"
-  | "quoting"
-  | "accepted"
-  | "on_the_way"
-  | "arrived"
-  | "in_progress"
-  | "completed"
-  | "cancelled";
 
 export type JobDetailsRow = {
   id: string;
@@ -73,17 +64,6 @@ type Profile = {
   avatar_url: string | null;
 };
 
-const STATUS_COLORS: Record<JobStatus, string> = {
-  searching: "bg-blue-100 text-blue-700",
-  quoting: "bg-violet-100 text-violet-700",
-  accepted: "bg-amber-100 text-amber-700",
-  on_the_way: "bg-orange-100 text-orange-700",
-  arrived: "bg-yellow-100 text-yellow-800",
-  in_progress: "bg-indigo-100 text-indigo-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  cancelled: "bg-rose-100 text-rose-700",
-};
-
 type TimelineEntry = {
   key: string;
   label: string;
@@ -100,7 +80,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
     label: "Job created · searching for fundi",
     at: job.created_at,
     icon: Search,
-    tone: "text-blue-600",
+    tone: STATUS_TONE.searching,
   });
   if (job.fundi_id && (job.status === "quoting" || job.agreed_price != null)) {
     entries.push({
@@ -108,7 +88,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
       label: "Negotiation / quoting",
       at: job.updated_at,
       icon: MessageSquareQuote,
-      tone: "text-violet-600",
+      tone: STATUS_TONE.quoting,
     });
   }
   if (
@@ -120,7 +100,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
       label: "Fundi accepted",
       at: job.updated_at,
       icon: CheckCircle2,
-      tone: "text-amber-600",
+      tone: STATUS_TONE.accepted,
     });
   }
   if (job.arrived_at) {
@@ -129,7 +109,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
       label: "Fundi arrived on site",
       at: job.arrived_at,
       icon: Navigation2,
-      tone: "text-orange-600",
+      tone: STATUS_TONE.arrived,
     });
   }
   if (job.status === "in_progress" || job.completed_at) {
@@ -138,7 +118,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
       label: "Work in progress",
       at: job.arrived_at ?? job.updated_at,
       icon: Wrench,
-      tone: "text-indigo-600",
+      tone: STATUS_TONE.in_progress,
     });
   }
   if (job.completed_at) {
@@ -147,7 +127,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
       label: "Job completed",
       at: job.completed_at,
       icon: Flag,
-      tone: "text-emerald-600",
+      tone: STATUS_TONE.completed,
     });
   }
   if (job.cancelled_at) {
@@ -156,7 +136,7 @@ function buildTimeline(job: JobDetailsRow): TimelineEntry[] {
       label: "Job cancelled",
       at: job.cancelled_at,
       icon: XCircle,
-      tone: "text-rose-600",
+      tone: STATUS_TONE.cancelled,
       note: job.cancellation_reason ?? undefined,
     });
   }
@@ -477,10 +457,10 @@ export default function JobDetailsDrawer({
           <SheetHeader className="p-5 pb-3">
             <div className="flex items-center gap-3">
               <div
-                className="w-11 h-11 rounded-xl grid place-items-center text-xl shrink-0"
+                className="w-11 h-11 rounded-xl grid place-items-center shrink-0"
                 style={{ background: meta?.color, color: "white" }}
               >
-                {meta?.icon}
+                {meta && <meta.Icon className="h-5 w-5" />}
               </div>
               <div className="min-w-0 flex-1">
                 <SheetTitle className="truncate">
@@ -624,7 +604,7 @@ export default function JobDetailsDrawer({
                         <Clock className="h-3 w-3" />
                         {new Date(e.at).toLocaleString()}
                       </div>
-                      {e.note && <div className="mt-1 text-xs text-rose-600">{e.note}</div>}
+                      {e.note && <div className="mt-1 text-xs text-destructive">{e.note}</div>}
                     </li>
                   );
                 })}
@@ -633,14 +613,14 @@ export default function JobDetailsDrawer({
 
             {/* Cancellation */}
             {job.cancelled_at && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm">
-                <div className="flex items-center gap-2 font-semibold text-rose-700">
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                <div className="flex items-center gap-2 font-semibold text-destructive">
                   <XCircle className="h-4 w-4" /> Cancellation
                 </div>
-                <div className="mt-1 text-rose-700/90">
+                <div className="mt-1 text-destructive/90">
                   {job.cancellation_reason ?? "No reason provided."}
                 </div>
-                <div className="mt-1 text-xs text-rose-700/70">
+                <div className="mt-1 text-xs text-destructive/70">
                   {new Date(job.cancelled_at).toLocaleString()}
                   {canceller ? ` · by ${canceller.full_name}` : ""}
                 </div>

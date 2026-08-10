@@ -122,7 +122,12 @@ function FundiSetup() {
                       : "border-border hover:border-primary/40"
                   }`}
                 >
-                  <div className="text-3xl">{meta.icon}</div>
+                  <div
+                    className="h-11 w-11 rounded-xl grid place-items-center"
+                    style={{ background: meta.color + "22", color: meta.color }}
+                  >
+                    <meta.Icon className="h-5 w-5" />
+                  </div>
                   <div className="font-semibold mt-2">{meta.label}</div>
                   <div className="text-[11px] text-muted-foreground">
                     avg {formatTsh(meta.price)}

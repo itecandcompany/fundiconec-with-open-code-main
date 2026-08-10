@@ -176,6 +176,7 @@ export type Database = {
           started_at: string | null
           status: Database["public"]["Enums"]["job_status"]
           updated_at: string
+          urgency: string
         }
         Insert: {
           after_photos?: string[]
@@ -207,6 +208,7 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           updated_at?: string
+          urgency?: string
         }
         Update: {
           after_photos?: string[]
@@ -238,6 +240,7 @@ export type Database = {
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           updated_at?: string
+          urgency?: string
         }
         Relationships: []
       }
