@@ -12,6 +12,14 @@ export default defineConfig({
   // platform doesn't know how to route (hence 404 NOT_FOUND on every page).
   // Setting an explicit preset here forces the deploy build to run and emit
   // Vercel's own `.vercel/output/` function structure instead of Cloudflare's.
+  //
+  // `serverEntry` matters too: without it, nitro can't find a server entry
+  // (it only auto-detects conventional files like server.ts, and TanStack
+  // Start's SSR build doesn't produce one — it registers as a Vite "ssr"
+  // environment instead). Nitro then silently falls back to serving the raw
+  // public/index.html for every route via its static "renderer" fallback,
+  // which looks like a working 200 response but is actually just the
+  // unbuilt template — hydration never happens, so the page stays blank.
   nitro: {
     preset: "vercel",
   },
