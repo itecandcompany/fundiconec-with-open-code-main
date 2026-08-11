@@ -7,14 +7,20 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // Outside a Lovable sandbox, this wrapper's nitro/deploy step is skipped
+  // entirely by default, which leaves a plain Node server.js that Vercel's
+  // platform doesn't know how to route (hence 404 NOT_FOUND on every page).
+  // Setting an explicit preset here forces the deploy build to run and emit
+  // Vercel's own `.vercel/output/` function structure instead of Cloudflare's.
+  nitro: {
+    preset: "vercel",
+  },
   vite: {
     ssr: {
-      // Ensure server output lands where Vercel expects
       target: "node",
       noExternal: [],
     },
     build: {
-      // Postpone minification/sourcemap if you want smaller builds
       sourcemap: false,
     },
   },
