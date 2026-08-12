@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/auth";
 import { startOfflineQueueWorker } from "@/lib/offlineQueue";
 import { registerServiceWorker } from "@/lib/pwa";
 import { I18nProvider } from "@/lib/i18n";
+import InstallBanner from "@/components/InstallBanner";
 
 function NotFoundComponent() {
   return (
@@ -156,6 +157,10 @@ function RootComponent() {
   return (
     <I18nProvider>
       <AuthProvider>
+        {/* Must render before Outlet: InstallBanner sits in normal document
+            flow (not fixed) specifically so it pushes page content down
+            instead of overlaying it — that only works if it's first. */}
+        <InstallBanner />
         <Outlet />
         <Toaster position="top-center" richColors />
       </AuthProvider>

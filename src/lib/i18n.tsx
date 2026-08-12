@@ -175,6 +175,15 @@ const en = {
   "fundiSetup.invalidRate": "Enter a valid hourly rate",
   "fundiSetup.savedEdit": "Profile updated",
   "fundiSetup.savedNew": "You're all set — welcome aboard!",
+
+  "install.title": "Install FundiFast",
+  "install.subtitle": "Add it to your home screen for the full app experience.",
+  "install.button": "Install",
+  "install.dismiss": "Dismiss",
+  "install.iosTitle": "Install on iPhone",
+  "install.iosStep1": "Tap the Share button in Safari's toolbar.",
+  "install.iosStep2": 'Scroll down and tap "Add to Home Screen".',
+  "install.gotIt": "Got it",
 } as const;
 
 export type TKey = keyof typeof en;
@@ -332,6 +341,15 @@ const sw: Record<TKey, string> = {
   "fundiSetup.invalidRate": "Weka bei sahihi kwa saa",
   "fundiSetup.savedEdit": "Wasifu umesasishwa",
   "fundiSetup.savedNew": "Umekamilisha usajili — karibu!",
+
+  "install.title": "Sakinisha FundiFast",
+  "install.subtitle": "Iweke kwenye skrini yako ya nyumbani kwa matumizi kamili ya programu.",
+  "install.button": "Sakinisha",
+  "install.dismiss": "Ondoa",
+  "install.iosTitle": "Sakinisha kwenye iPhone",
+  "install.iosStep1": "Gusa kitufe cha Share kwenye upau wa Safari.",
+  "install.iosStep2": 'Teremka chini na ugusa "Add to Home Screen".',
+  "install.gotIt": "Nimeelewa",
 };
 
 const DICTS: Record<Lang, Record<TKey, string>> = { en, sw };

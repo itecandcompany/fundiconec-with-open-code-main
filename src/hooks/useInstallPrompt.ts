@@ -61,11 +61,7 @@ export function useInstallPrompt() {
     };
   }, []);
 
-  const platform: "android" | "ios" | null = deferredPrompt
-    ? "android"
-    : isIOS()
-      ? "ios"
-      : null;
+  const platform: "android" | "ios" | null = deferredPrompt ? "android" : isIOS() ? "ios" : null;
 
   const canPrompt = !installed && !dismissed && platform !== null;
 

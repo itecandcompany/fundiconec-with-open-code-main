@@ -23,7 +23,13 @@ export default function InstallBanner() {
   };
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[1500] flex justify-center px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    // Deliberately not `position: fixed` — every route already has its own
+    // sticky `top-0` header, and a fixed overlay here would sit on top of
+    // it rather than push it down (confirmed: it visually covered the
+    // Jobs page header). Sitting in normal flow, above everything else in
+    // the root layout, means it pushes all page content down instead —
+    // no overlap is possible regardless of what a given route renders.
+    <div className="relative z-[1500] flex justify-center px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <div className="flex w-full max-w-md items-center gap-3 rounded-2xl border bg-card/95 p-3 shadow-elegant backdrop-blur">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-primary text-sm font-bold text-primary-foreground">
           F

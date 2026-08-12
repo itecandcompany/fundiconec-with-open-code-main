@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ function AppLayout() {
   const userId = user?.id;
   const profileRole = profile?.role;
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [fundiChecked, setFundiChecked] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,12 @@ function AppLayout() {
       return (
         <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>
       );
+    }
+    // The fundi dashboard below owns the exact "/app" path. Any deeper
+    // route (e.g. /app/account) needs to actually render, not be replaced
+    // by the dashboard every time — hand off to the matched child route.
+    if (pathname !== "/app") {
+      return <Outlet />;
     }
     return (
       <div className="min-h-screen bg-background pb-24">
