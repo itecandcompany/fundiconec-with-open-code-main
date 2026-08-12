@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Shield, Settings } from "lucide-react";
 import FundiLivePanel from "@/components/FundiLivePanel";
 import { supabase } from "@/integrations/supabase/client";
+import AvatarIcon from "@/components/Avatar";
 
 export const Route = createFileRoute("/app")({ component: AppLayout });
 
@@ -54,9 +55,15 @@ function AppLayout() {
           <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="font-display font-bold">FundiFast</div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                Hi, {profile.full_name.split(" ")[0]}
-              </span>
+              <Link
+                to="/app/account"
+                className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-muted transition-colors"
+              >
+                <AvatarIcon url={profile.avatar_url} name={profile.full_name} size={28} />
+                <span className="text-sm text-muted-foreground">
+                  {profile.full_name.split(" ")[0]}
+                </span>
+              </Link>
               <Button asChild variant="ghost" size="icon" title="Edit service / rate">
                 <Link to="/fundi/setup">
                   <Settings className="h-4 w-4" />

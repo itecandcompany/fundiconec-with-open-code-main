@@ -20,6 +20,8 @@ import {
   Star,
   Briefcase,
   Wallet,
+  HelpCircle,
+  Camera,
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { SERVICE_META, formatTsh, type ServiceKey } from "@/lib/geo";
@@ -34,6 +36,7 @@ type FundiStats = {
   hourly_rate: number;
   rating: number;
   total_jobs: number;
+  bio: string | null;
 };
 
 function Account() {
@@ -51,7 +54,7 @@ function Account() {
     setFundiLoading(true);
     supabase
       .from("fundis")
-      .select("service, hourly_rate, rating, total_jobs")
+      .select("service, hourly_rate, rating, total_jobs, bio")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -73,36 +76,59 @@ function Account() {
       </header>
 
       <main className="px-4 py-4 space-y-4 max-w-2xl mx-auto lg:max-w-3xl lg:px-8 lg:py-6">
-        <Card className="p-4 flex items-center gap-4">
-          <Avatar url={profile.avatar_url} name={profile.full_name} size={56} />
-          <div className="min-w-0 flex-1">
-            <div className="font-display font-bold text-lg leading-tight truncate">
-              {profile.full_name}
-            </div>
-            <div className="text-xs text-muted-foreground capitalize">{profile.role}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {t("account.memberSince", { date: memberSince })}
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={t("account.editProfile")}
+        <div className="flex flex-col items-center gap-3 py-2 text-center">
+          <button
+            type="button"
             onClick={() => setEditOpen(true)}
-            className="shrink-0"
+            aria-label={t("account.changePhoto")}
+            className="group relative rounded-full"
           >
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </Card>
-
-        <Card className="divide-y overflow-hidden p-0">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm truncate">{user?.email ?? "—"}</span>
+            <Avatar url={profile.avatar_url} name={profile.full_name} size={96} />
+            <span className="absolute inset-0 grid place-items-center rounded-full bg-black/0 transition-colors group-hover:bg-black/40">
+              <Camera className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+            </span>
+          </button>
+          <div>
+            <div className="font-display font-bold text-xl leading-tight">{profile.full_name}</div>
+            <div className="text-xs text-muted-foreground capitalize mt-0.5">
+              {profile.role} · {t("account.memberSince", { date: memberSince })}
+            </div>
           </div>
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm truncate">{profile.phone ?? t("account.noPhone")}</span>
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-3.5 w-3.5" /> {t("account.editProfile")}
+          </Button>
+        </div>
+
+        <Card className="p-0 overflow-hidden">
+          <h2 className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("account.contactInfo")}
+          </h2>
+          <div className="divide-y">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="h-10 w-10 shrink-0 rounded-full bg-muted grid place-items-center text-primary">
+                <Mail className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] text-muted-foreground">{t("account.email")}</div>
+                <div className="text-sm truncate">{user?.email ?? "—"}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="h-10 w-10 shrink-0 rounded-full bg-muted grid place-items-center text-primary">
+                <Phone className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] text-muted-foreground">{t("account.phone")}</div>
+                <div className="text-sm truncate">{profile.phone ?? t("account.noPhone")}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="shrink-0 text-xs font-medium text-primary hover:underline"
+              >
+                {t("common.edit")}
+              </button>
+            </div>
           </div>
         </Card>
 
@@ -172,29 +198,76 @@ function Account() {
           </Card>
         )}
 
+        {isFundi && fundiStats && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-display font-semibold">{t("account.about")}</h2>
+              <Link
+                to="/fundi/setup"
+                className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5"
+              >
+                {t("common.edit")}
+                <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {fundiStats.bio || t("account.aboutEmpty")}
+            </p>
+          </Card>
+        )}
+
+        {!isFundi && (
+          <Card className="p-0 overflow-hidden">
+            <h2 className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("account.activity")}
+            </h2>
+            <Link
+              to="/app/jobs"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+            >
+              <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="flex-1 text-sm">{t("account.jobHistory")}</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </Link>
+          </Card>
+        )}
+
         <Card className="p-4">
           <LanguageSwitcher />
         </Card>
 
-        <Card className="divide-y overflow-hidden p-0">
-          <Link
-            to="/privacy"
-            className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
-          >
-            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="flex-1 text-sm">{t("common.privacy")}</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-          </Link>
-          {profile.role === "admin" && (
+        <Card className="p-0 overflow-hidden">
+          <h2 className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("account.supportLegal")}
+          </h2>
+          <div className="divide-y">
             <Link
-              to="/admin"
+              to="/app/help"
               className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
             >
-              <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="flex-1 text-sm">{t("account.adminConsole")}</span>
+              <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="flex-1 text-sm">{t("account.helpCenter")}</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
             </Link>
-          )}
+            <Link
+              to="/privacy"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+            >
+              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="flex-1 text-sm">{t("common.privacy")}</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </Link>
+            {profile.role === "admin" && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+              >
+                <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="flex-1 text-sm">{t("account.adminConsole")}</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              </Link>
+            )}
+          </div>
         </Card>
 
         <Button
