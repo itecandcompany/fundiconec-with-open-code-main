@@ -9,8 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SERVICE_META, type ServiceKey, formatTsh } from "@/lib/geo";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Star, Briefcase } from "lucide-react";
 import { toUserMessage } from "@/lib/errorMessages";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/fundi/setup")({
   ssr: false,
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/fundi/setup")({
 const SERVICES = Object.entries(SERVICE_META) as [ServiceKey, (typeof SERVICE_META)[ServiceKey]][];
 
 function FundiSetup() {
+  const t = useT();
   const { user, profile, loading } = useAuth();
   const userId = user?.id;
   const profileRole = profile?.role;
@@ -29,6 +31,10 @@ function FundiSetup() {
   const [bio, setBio] = useState("");
   const [busy, setBusy] = useState(false);
   const [hydrating, setHydrating] = useState(true);
+  // Distinguishes first-time onboarding from editing an existing profile —
+  // an existing fundi row means they've already set up before, so the
+  // heading/copy and stats card below should reflect an edit, not onboarding.
+  const [existing, setExisting] = useState<{ rating: number; total_jobs: number } | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -42,7 +48,7 @@ function FundiSetup() {
     }
     supabase
       .from("fundis")
-      .select("service, hourly_rate, bio")
+      .select("service, hourly_rate, bio, rating, total_jobs")
       .eq("id", userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -50,6 +56,7 @@ function FundiSetup() {
           setService(data.service as ServiceKey);
           setRate(String(data.hourly_rate));
           setBio(data.bio ?? "");
+          setExisting({ rating: data.rating, total_jobs: data.total_jobs });
         }
         setHydrating(false);
       });
@@ -57,12 +64,12 @@ function FundiSetup() {
 
   const submit = async () => {
     if (!user || !service) {
-      toast.error("Pick a service category");
+      toast.error(t("fundiSetup.pickService"));
       return;
     }
     const rateNum = Number(rate);
     if (!(rateNum > 0)) {
-      toast.error("Enter a valid hourly rate");
+      toast.error(t("fundiSetup.invalidRate"));
       return;
     }
     setBusy(true);
@@ -77,7 +84,7 @@ function FundiSetup() {
       toast.error(toUserMessage(error));
       return;
     }
-    toast.success("You're all set — welcome aboard!");
+    toast.success(existing ? t("fundiSetup.savedEdit") : t("fundiSetup.savedNew"));
     navigate({ to: "/app" });
   };
 
@@ -96,18 +103,37 @@ function FundiSetup() {
           onClick={() => navigate({ to: "/app" })}
           className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("fundiSetup.back")}
         </button>
 
         <div>
-          <h1 className="font-display font-bold text-3xl">Fundi setup</h1>
-          <p className="text-muted-foreground mt-1">
-            Pick your trade so we can match you with the right jobs.
-          </p>
+          <h1 className="font-display font-bold text-3xl">
+            {existing ? t("fundiSetup.editTitle") : t("fundiSetup.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">{t("fundiSetup.subtitle")}</p>
         </div>
 
+        {existing && (
+          <Card className="p-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-muted/50 p-3 text-center">
+              <Star className="h-4 w-4 mx-auto text-accent fill-accent" />
+              <div className="font-bold mt-1">{existing.rating.toFixed(1)}</div>
+              <div className="text-[10px] text-muted-foreground uppercase">
+                {t("account.rating")}
+              </div>
+            </div>
+            <div className="rounded-xl bg-muted/50 p-3 text-center">
+              <Briefcase className="h-4 w-4 mx-auto text-primary" />
+              <div className="font-bold mt-1">{existing.total_jobs}</div>
+              <div className="text-[10px] text-muted-foreground uppercase">
+                {t("account.completedJobs")}
+              </div>
+            </div>
+          </Card>
+        )}
+
         <Card className="p-5 space-y-3">
-          <Label className="text-sm font-semibold">Your service category</Label>
+          <Label className="text-sm font-semibold">{t("fundiSetup.serviceCategory")}</Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {SERVICES.map(([key, meta]) => {
               const active = service === key;
@@ -130,7 +156,7 @@ function FundiSetup() {
                   </div>
                   <div className="font-semibold mt-2">{meta.label}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    avg {formatTsh(meta.price)}
+                    {t("fundiSetup.avgPrice", { price: formatTsh(meta.price) })}
                   </div>
                 </button>
               );
@@ -140,7 +166,7 @@ function FundiSetup() {
 
         <Card className="p-5 space-y-4">
           <div>
-            <Label htmlFor="rate">Hourly rate (TSh)</Label>
+            <Label htmlFor="rate">{t("fundiSetup.hourlyRate")}</Label>
             <Input
               id="rate"
               type="number"
@@ -151,11 +177,11 @@ function FundiSetup() {
             />
           </div>
           <div>
-            <Label htmlFor="bio">Short bio (optional)</Label>
+            <Label htmlFor="bio">{t("fundiSetup.bio")}</Label>
             <Textarea
               id="bio"
               rows={3}
-              placeholder="Years of experience, specialties, languages…"
+              placeholder={t("fundiSetup.bioPlaceholder")}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
             />
@@ -167,7 +193,13 @@ function FundiSetup() {
           disabled={busy || !service}
           className="w-full h-12 bg-gradient-primary"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save & continue"}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : existing ? (
+            t("common.submit")
+          ) : (
+            t("fundiSetup.saveContinue")
+          )}
         </Button>
       </div>
     </div>

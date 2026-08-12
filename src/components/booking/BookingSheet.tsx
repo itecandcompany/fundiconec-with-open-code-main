@@ -92,6 +92,7 @@ export default function BookingSheet({
   pos,
   activeJob,
   onOpenChat,
+  chatUnreadCount = 0,
   onClose,
   onPickQuoteFundi,
 }: {
@@ -100,6 +101,7 @@ export default function BookingSheet({
   pos: [number, number] | null;
   activeJob: ActiveJob | null;
   onOpenChat: (jobId: string, title: string) => void;
+  chatUnreadCount?: number;
   onClose: () => void;
   onPickQuoteFundi?: (fundiId: string) => void;
 }) {
@@ -873,10 +875,18 @@ export default function BookingSheet({
         <div className="flex gap-3">
           <Button
             variant="secondary"
-            className="flex-1 h-13 text-base"
+            className="relative flex-1 h-13 text-base"
             onClick={() => onOpenChat(activeJob.id, activeFundi?.full_name ?? "Fundi")}
           >
             <MessageCircle className="h-4 w-4" /> {t("booking.chat")}
+            {chatUnreadCount > 0 && (
+              <span
+                aria-label={t("booking.unreadMessages", { count: chatUnreadCount })}
+                className="absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[11px] font-semibold text-destructive-foreground"
+              >
+                {chatUnreadCount > 9 ? "9+" : chatUnreadCount}
+              </span>
+            )}
           </Button>
           <Button asChild className="flex-1 h-13 text-base" disabled={!activeFundi?.phone}>
             <a href={activeFundi?.phone ? `tel:${activeFundi.phone}` : "#"}>

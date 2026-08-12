@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ActiveJobLayer, { type ActiveJob } from "./ActiveJobLayer";
 import { sendBrowserNotification, ensureNotificationPermission } from "@/lib/push";
+import { useChatNotifications } from "@/hooks/useChatNotifications";
 import BookingSheet from "./booking/BookingSheet";
 import JobChat from "./chat/JobChat";
 
@@ -381,6 +382,17 @@ export default function LiveMap({
       );
   }, [activeJob?.fundi_id]);
 
+  // Notifies of new chat messages regardless of whether the chat sheet is
+  // open or the user is elsewhere in the app (map, jobs list, another tab).
+  const { unreadCount: chatUnreadCount } = useChatNotifications({
+    jobId: activeJob?.id ?? null,
+    chatOpen: !!chat,
+    otherPartyName: activeFundi?.name ?? "Fundi",
+    onOpenChat: () => {
+      if (activeJob) setChat({ jobId: activeJob.id, title: activeFundi?.name ?? "Fundi" });
+    },
+  });
+
   const list = useMemo(() => {
     const arr = Object.values(fundis);
     if (!pos) return arr.map((f) => ({ f, km: 0 }));
@@ -476,6 +488,7 @@ export default function LiveMap({
           pos={pos}
           activeJob={activeJob as unknown as Parameters<typeof BookingSheet>[0]["activeJob"]}
           onOpenChat={(jobId, title) => setChat({ jobId, title })}
+          chatUnreadCount={chatUnreadCount}
           onClose={() => {
             setActiveJob(null);
             setReverseTrack(false);

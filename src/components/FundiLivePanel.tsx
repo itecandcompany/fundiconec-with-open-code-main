@@ -30,6 +30,7 @@ import {
   type ServiceKey,
 } from "@/lib/geo";
 import { sendBrowserNotification, ensureNotificationPermission } from "@/lib/push";
+import { useChatNotifications } from "@/hooks/useChatNotifications";
 import JobChat from "./chat/JobChat";
 import ProofOfWorkDialog, { type ProofMode, type ProofResult } from "./fundi/ProofOfWorkDialog";
 import SignedImage from "@/components/SignedImage";
@@ -116,6 +117,20 @@ export default function FundiLivePanel() {
   const activeStatus = active?.status;
   const posLat = pos?.[0];
   const posLng = pos?.[1];
+
+  // Notifies of new chat messages regardless of whether the chat sheet is
+  // open or the fundi is elsewhere in the app.
+  const { unreadCount: chatUnreadCount } = useChatNotifications({
+    jobId: activeId ?? null,
+    chatOpen: chatOpen && chatJobId === activeId,
+    otherPartyName: clientName,
+    onOpenChat: () => {
+      if (activeId) {
+        setChatJobId(activeId);
+        setChatOpen(true);
+      }
+    },
+  });
 
   useEffect(() => {
     if (available) ensureNotificationPermission();
@@ -707,8 +722,16 @@ export default function FundiLivePanel() {
           )}
 
           <div className="grid grid-cols-3 gap-2">
-            <Button variant="outline" onClick={() => openChat(active.id)}>
+            <Button variant="outline" className="relative" onClick={() => openChat(active.id)}>
               <MessageCircle className="h-4 w-4" /> Chat
+              {chatUnreadCount > 0 && (
+                <span
+                  aria-label={`${chatUnreadCount} unread messages`}
+                  className="absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[11px] font-semibold text-destructive-foreground"
+                >
+                  {chatUnreadCount > 9 ? "9+" : chatUnreadCount}
+                </span>
+              )}
             </Button>
             <Button asChild variant="outline" disabled={!clientPhone}>
               <a href={clientPhone ? `tel:${clientPhone}` : "#"}>
