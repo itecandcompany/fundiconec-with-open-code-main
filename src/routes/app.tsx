@@ -1,16 +1,14 @@
-import { createFileRoute, Outlet, useNavigate, useRouterState, Link } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { LogOut, Shield, Settings } from "lucide-react";
 import FundiLivePanel from "@/components/FundiLivePanel";
+import AppTabBar from "@/components/AppTabBar";
 import { supabase } from "@/integrations/supabase/client";
-import AvatarIcon from "@/components/Avatar";
 
 export const Route = createFileRoute("/app")({ component: AppLayout });
 
 function AppLayout() {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading } = useAuth();
   const userId = user?.id;
   const profileRole = profile?.role;
   const navigate = useNavigate();
@@ -42,7 +40,6 @@ function AppLayout() {
   }
 
   const isFundi = profile.role === "fundi";
-  const isAdmin = profile.role === "admin";
 
   if (isFundi) {
     if (!fundiChecked) {
@@ -51,51 +48,20 @@ function AppLayout() {
       );
     }
     // The fundi dashboard below owns the exact "/app" path. Any deeper
-    // route (e.g. /app/account) needs to actually render, not be replaced
-    // by the dashboard every time — hand off to the matched child route.
+    // route (e.g. /app/jobs, /app/account) needs to actually render, not be
+    // replaced by the dashboard every time — hand off to the matched child
+    // route. AppTabBar is what makes those routes reachable at all: it's
+    // the only nav a fundi has (Home/Jobs/Help/Account), same component the
+    // client side already uses.
     if (pathname !== "/app") {
       return <Outlet />;
     }
     return (
-      <div className="min-h-screen bg-background pb-24">
-        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b">
-          <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="font-display font-bold">FundiFast</div>
-            <div className="flex items-center gap-2">
-              <Link
-                to="/app/account"
-                className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-muted transition-colors"
-              >
-                <AvatarIcon url={profile.avatar_url} name={profile.full_name} size={28} />
-                <span className="text-sm text-muted-foreground">
-                  {profile.full_name.split(" ")[0]}
-                </span>
-              </Link>
-              <Button asChild variant="ghost" size="icon" title="Edit service / rate">
-                <Link to="/fundi/setup">
-                  <Settings className="h-4 w-4" />
-                </Link>
-              </Button>
-              {isAdmin && (
-                <Button asChild variant="ghost" size="icon">
-                  <Link to="/admin">
-                    <Shield className="h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => signOut().then(() => navigate({ to: "/" }))}
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </header>
-        <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      <div className="min-h-[var(--app-100vh)] bg-background pb-24 lg:pb-8 lg:pl-60">
+        <main className="max-w-3xl mx-auto px-4 py-6 space-y-6 lg:px-8 lg:py-6">
           <FundiLivePanel />
         </main>
+        <AppTabBar />
       </div>
     );
   }

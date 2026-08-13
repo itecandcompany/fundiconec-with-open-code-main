@@ -37,25 +37,31 @@ const ACTIVE_STATUSES: JobStatus[] = [
 
 function JobsHistory() {
   const t = useT();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const isFundi = profile?.role === "fundi";
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [receiptJobId, setReceiptJobId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile) return;
+    // A fundi's history is jobs they were hired for, not jobs they
+    // requested — `client_id` (the original, client-only query) always
+    // returned zero rows for a fundi, since a fundi is never its own
+    // client. This silently looked like "no jobs" for every fundi.
+    const column = isFundi ? "fundi_id" : "client_id";
     supabase
       .from("jobs")
       .select("id, service, status, price, agreed_price, problem_title, created_at")
-      .eq("client_id", user.id)
+      .eq(column, user.id)
       .order("created_at", { ascending: false })
       .limit(50)
       .then(({ data }) => {
         setJobs((data as JobRow[]) ?? []);
         setLoading(false);
       });
-  }, [user]);
+  }, [user, profile, isFundi]);
 
   const openJob = (job: JobRow) => {
     if (ACTIVE_STATUSES.includes(job.status)) {
@@ -69,7 +75,9 @@ function JobsHistory() {
     <div className="min-h-[var(--app-100vh)] bg-background pb-24 lg:pb-8 lg:pl-60">
       <header className="border-b bg-background/90 backdrop-blur px-4 py-4 lg:px-8 lg:py-6">
         <h1 className="font-display text-2xl font-bold lg:text-3xl">{t("jobs.title")}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{t("jobs.subtitle")}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {t(isFundi ? "jobs.subtitleFundi" : "jobs.subtitle")}
+        </p>
       </header>
 
       <main className="px-4 py-4 space-y-2 max-w-2xl mx-auto lg:max-w-5xl lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 lg:px-8 lg:py-6">
@@ -91,7 +99,9 @@ function JobsHistory() {
               <Briefcase className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="font-medium">{t("jobs.empty")}</p>
-            <p className="text-sm text-muted-foreground mt-1">{t("jobs.emptyHint")}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t(isFundi ? "jobs.emptyHintFundi" : "jobs.emptyHint")}
+            </p>
           </div>
         ) : (
           jobs.map((job) => {
@@ -121,7 +131,17 @@ function JobsHistory() {
                       month: "short",
                       day: "numeric",
                     })}{" "}
-                    · {formatTsh(job.agreed_price ?? job.price)}
+                    ·{" "}
+                    {formatTsh(
+                      // Fundis keep 90% after the platform fee (matches the
+                      // "Earnings (90%)" figure shown everywhere else on the
+                      // fundi side, e.g. FundiLivePanel) — showing the full
+                      // client-paid price here would overstate what they
+                      // actually receive.
+                      isFundi
+                        ? Math.round((job.agreed_price ?? job.price) * 0.9)
+                        : (job.agreed_price ?? job.price),
+                    )}
                   </div>
                 </div>
               </Card>
@@ -134,7 +154,7 @@ function JobsHistory() {
         jobId={receiptJobId}
         open={!!receiptJobId}
         onOpenChange={(o) => !o && setReceiptJobId(null)}
-        role="client"
+        role={isFundi ? "fundi" : "client"}
       />
       <AppTabBar />
     </div>

@@ -216,21 +216,23 @@ function Account() {
           </Card>
         )}
 
-        {!isFundi && (
-          <Card className="p-0 overflow-hidden">
-            <h2 className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("account.activity")}
-            </h2>
-            <Link
-              to="/app/jobs"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
-            >
-              <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="flex-1 text-sm">{t("account.jobHistory")}</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-            </Link>
-          </Card>
-        )}
+        {/* Was client-only — /app/jobs used to hard-code `client_id` in its
+            query, so it silently showed "no jobs" for every fundi even
+            though they had a real history. Now that it queries by role
+            (fundi_id vs client_id), this card is correct for both. */}
+        <Card className="p-0 overflow-hidden">
+          <h2 className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("account.activity")}
+          </h2>
+          <Link
+            to="/app/jobs"
+            className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors"
+          >
+            <Briefcase className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="flex-1 text-sm">{t("account.jobHistory")}</span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
+        </Card>
 
         <Card className="p-4">
           <LanguageSwitcher />

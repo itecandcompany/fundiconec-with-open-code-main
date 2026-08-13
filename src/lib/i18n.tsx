@@ -114,8 +114,10 @@ const en = {
 
   "jobs.title": "Your jobs",
   "jobs.subtitle": "Everything you've requested, past and present.",
+  "jobs.subtitleFundi": "Everything you've worked on, past and present.",
   "jobs.empty": "No jobs yet",
   "jobs.emptyHint": "Request a fundi from the Home tab to get started.",
+  "jobs.emptyHintFundi": "Go online from the Home tab to start receiving job requests.",
 
   "help.title": "Help",
   "help.subtitle": "Answers to common questions.",
@@ -280,8 +282,11 @@ const sw: Record<TKey, string> = {
 
   "jobs.title": "Kazi zako",
   "jobs.subtitle": "Kila ulichoomba, cha zamani na cha sasa.",
+  "jobs.subtitleFundi": "Kila ulichofanyia kazi, cha zamani na cha sasa.",
   "jobs.empty": "Bado hakuna kazi",
   "jobs.emptyHint": "Omba fundi kutoka kichupo cha Nyumbani ili kuanza.",
+  "jobs.emptyHintFundi":
+    "Washa 'mtandaoni' kutoka kichupo cha Nyumbani ili uanze kupokea maombi ya kazi.",
 
   "help.title": "Msaada",
   "help.subtitle": "Majibu ya maswali ya kawaida.",
