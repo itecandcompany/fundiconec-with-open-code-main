@@ -199,8 +199,15 @@ export default function BookingSheet({
         () => load(),
       )
       .subscribe();
+    // Realtime alone can silently stop delivering updates (a dropped or
+    // reconnecting websocket, common enough on mobile data) with nothing
+    // visibly wrong — the client would just sit on "Searching…" forever
+    // even after a fundi has actually quoted. This poll is the fallback
+    // that guarantees the screen keeps moving regardless of socket health.
+    const pollId = window.setInterval(load, 5000);
     return () => {
       cancelled = true;
+      window.clearInterval(pollId);
       supabase.removeChannel(ch);
     };
   }, [activeJobId, activeJobStatus]);

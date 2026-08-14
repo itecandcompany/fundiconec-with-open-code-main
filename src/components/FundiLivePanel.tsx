@@ -440,8 +440,16 @@ export default function FundiLivePanel() {
       .channel(`incoming-jobs-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, () => load())
       .subscribe();
+    // Realtime alone isn't reliable enough for "will a fundi actually see a
+    // new job" — a dropped/reconnecting websocket (not rare on mobile data)
+    // silently stops updates with no visible sign anything is wrong. This
+    // poll is the fallback that guarantees incoming requests and their
+    // notifications still arrive even when the socket is degraded, at the
+    // cost of a request every 8s while a fundi is online and idle.
+    const pollId = window.setInterval(load, 8000);
     return () => {
       cancelled = true;
+      window.clearInterval(pollId);
       supabase.removeChannel(ch);
     };
   }, [userId, available, activeId, loadOpenJobs]);
